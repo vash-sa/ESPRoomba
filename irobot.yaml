@@ -23,13 +23,12 @@ external_components:
 esp32:
   board: esp32-c3-devkitm-1
   framework:
-    type: esp-idf
+    type: arduino
 
 
 # Enable logging
 logger:
-  level: INFO
-  hardware_uart: USB_SERIAL_JTAG
+  level: NONE  
 
 # Enable Home Assistant API
 api:
