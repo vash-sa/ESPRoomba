@@ -24,7 +24,7 @@ esp32:
   board: esp32-c3-devkitm-1
   framework:
     type: arduino
-
+  variant: esp32c3 # Указываем точный подтип чипа
 
 # Enable logging
 logger:
@@ -59,12 +59,6 @@ status_led:
   pin:
     number: GPIO8
     inverted: true
-
-esp32_ble_beacon:
-  type: iBeacon
-  tx_power: 9
-  measured_power: -74
-  uuid: f228a856-cc91-6ae6-5829-fb677292c386
 
 uart:
   id: uart_bus
