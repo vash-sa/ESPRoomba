@@ -30,22 +30,23 @@ esp32:
 # Enable logging
 logger:
   level: INFO
+  hardware_uart: USB_SERIAL_JTAG
 
 # Enable Home Assistant API
 api:
   custom_services: true
 
 preferences:
-  flash_write_interval: !secret flash_write_interval
+  flash_write_interval: 1min  # Заменили !secret на обычное значение
 
 wifi:
   networks:
-    ssid: !secret wifi_ssid
-    password: !secret wifi_password
+    ssid: "ASUS_W"
+    password: "whiteWOLF667djkr"
   fast_connect: true
   ap:
     ssid: ${friendly_name}
-    password: !secret wifi_password
+    password: "vash_sa_1965_5"
 
 captive_portal:
 
@@ -69,8 +70,8 @@ esp32_ble_beacon:
 
 uart:
   id: uart_bus
-  tx_pin: 6
-  rx_pin: 7
+  tx_pin: GPIO21
+  rx_pin: GPIO20
   baud_rate: 115200
   # debug:
   #   direction: RX
@@ -79,15 +80,9 @@ uart:
 debug:
 
 time:
-  - platform: homeassistant
+  - platform: sntp
     id: my_time
-    on_time:
-      - seconds: 0
-        minutes: 0
-        hours: 5
-        then:
-          - button.press: set_date
-
+    
 custom_component:
   - lambda: |-
       auto r = ${init}
