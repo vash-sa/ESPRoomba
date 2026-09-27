@@ -28,8 +28,16 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			static RoombaComponent* INSTANCE = new RoombaComponent(brcPin, parent, updateInterval, lazy650Enabled);
 			return INSTANCE;
 		}
-
 		void setup() override {
+   			 // Намертво переводим пин в режим входа (Hi-Z).
+    		// Прямой провод теперь в полной безопасности при любом флаге!
+    		pinMode(this->brcPin, INPUT); 
+
+    		register_service(&RoombaComponent::on_command, "command", {"command"});
+		}
+
+
+		/*void setup() override {
 			if (this->lazy650Enabled) {
 				// High-impedence on the BRC_PIN
 				// see https://github.com/johnboiles/esp-roomba-mqtt/commit/fa9af14376f740f366a9ecf4cb59dec2419deeb0#diff-34d21af3c614ea3cee120df276c9c4ae95053830d7f1d3deaf009a4625409ad2R140
@@ -40,7 +48,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			}
 
 			register_service(&RoombaComponent::on_command, "command", {"command"});
-		}
+		}*/
 
     	void update() override {
 			if (this->lazy650Enabled) {
@@ -335,8 +343,10 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
             PlayCmd         = 141, //8D
             SensorsListCmd  = 149, //95
 			SetDateCmd		= 168, //A8
-        } Commands;      
-            
+        } Commands;
+
+
+        /*    
 		void brc_wakeup() {
 			if (this->lazy650Enabled) {
 				ESP_LOGD("roomba", "brc_wakeup");
@@ -352,7 +362,21 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 				digitalWrite(this->brcPin, HIGH);
 				delay(100);
 			}
+		}*/
+		void brc_wakeup() {
+		    ESP_LOGD("roomba", "brc_wakeup");		    
+		    digitalWrite(this->brcPin, LOW);		    
+		    pinMode(this->brcPin, OUTPUT);		    
+		    
+		    // Увеличиваем до 1000 мс для железной надежности
+		    delay(1000);		    
+		    
+		    pinMode(this->brcPin, INPUT); 
+		    delay(200);
+		    
+		    start_oi(); 
 		}
+
 
 		void on_command(std::string command) {
 			if (command == "clean") {
