@@ -50,6 +50,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			register_service(&RoombaComponent::on_command, "command", {"command"});
 		}*/
 
+		/*
     	void update() override {
 			if (this->lazy650Enabled) {
 				long now = millis();
@@ -67,6 +68,10 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 						brc_wakeup();
 					}
 				}
+			}*/
+			void update() override {
+   				 // Полностью вырезали костыльный таймер. 
+   				 // Метод оставляем пустым: робот будет спокойно спать на базе и экономить батарею.
 			}
 
 			uint8_t charging;
