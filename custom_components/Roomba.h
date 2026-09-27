@@ -50,184 +50,166 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			register_service(&RoombaComponent::on_command, "command", {"command"});
 		}*/
 
-		/*
+		
     	void update() override {
-			if (this->lazy650Enabled) {
-				long now = millis();
-				// Wakeup the roomba at fixed intervals
-				if (now - lastWakeupTime > 50000) {
-					ESP_LOGD("roomba", "Time to wakeup");
-					lastWakeupTime = now;
-					if (!wasCleaning) {
-						if (wasDocked) {
-							wake_on_dock();
-						} else {
-							brc_wakeup();
-						}
-					} else {
-						brc_wakeup();
-					}
-				}
-			}*/
-			void update() override {
-   				 // Полностью вырезали костыльный таймер. 
-   				 // Метод оставляем пустым: робот будет спокойно спать на базе и экономить батарею.
-			}
-
-			uint8_t charging;
-			uint16_t voltage;
-			int16_t current;
-			uint16_t batteryCharge;
-			uint16_t batteryCapacity;
-			int16_t batteryTemperature;
-			int16_t rightMotorCurrent;
-			int16_t leftMotorCurrent;
-            int16_t mainBrushCurrent;
-            int16_t sideBrushCurrent;
-			uint8_t virtualWall;
-			uint8_t chargingSources;
-			uint8_t buttons;
-
-			flush();
-
-			uint8_t sensors[] = {
-				SensorChargingState,
-				SensorVoltage,
-				SensorCurrent,
-				SensorBatteryCharge,
-				SensorBatteryCapacity,
-				SensorBatteryTemperature,
-				SensorOIMode,
-				SensorRightMotorCurrent,
-				SensorLeftMotorCurrent,
-                SensorMainBrushCurrent,
-                SensorSideBrushCurrent,
-				SensorVirtualWall,
-				SensorChargingSourcesAvailable,
-				SensorButtons,
-			};
-
-			uint8_t values[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-			bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
-			if (!success) {
-				ESP_LOGD("roomba", "Could not get sensor values from serial");
-				return;
-			}
-
-			charging = values[0];
-			voltage = values[1] * 256 + values[2];
-			current = values[3] * 256 + values[4];
-			batteryCharge = values[5] * 256 + values[6];
-      		batteryCapacity = values[7] * 256 + values[8];
-			batteryTemperature = values[9];
-			std::string oiMode = get_oimode(values[10]);
-			rightMotorCurrent = values[11] * 256 + values[12]; 
-			leftMotorCurrent = values[13] * 256 + values[14]; 
-            mainBrushCurrent = values[15] * 256 + values[16];
-            sideBrushCurrent = values[17] * 256 + values[18];
-			virtualWall = values[19];
-			chargingSources = values[20];
-			buttons = values[21];
-
-			std::string activity = get_activity(charging, current);
-			wasCleaning = activity == "Cleaning";
-			wasDocked = activity == "Docked";
-
-			float voltageData = 0.001 * roundf(voltage * 100) / 100;
-			if (this->voltageSensor->state != voltageData) {
-				this->voltageSensor->publish_state(voltageData);
-			}
-
-			float currentData = 0.001 * roundf(current * 100) / 100;
-			if (this->currentSensor->state != currentData) {
-				this->currentSensor->publish_state(currentData);
-			}
-
-			float charge = 0.001 * roundf(batteryCharge * 100) / 100;
-			if (this->batteryChargeSensor->state != charge) {
-				this->batteryChargeSensor->publish_state(charge);
-			}
-
-			float capacity = 0.001 * roundf(batteryCapacity * 100) / 100;
-			if (this->batteryCapacitySensor->state != capacity) {
-				this->batteryCapacitySensor->publish_state(capacity);
-			}
-
-			float battery_level = 100.0 * ((1.0 * charge) / (1.0 * capacity));
-			if (this->batteryPercentSensor->state != battery_level) {
-				this->batteryPercentSensor->publish_state(battery_level);
-			}
-
-			if (this->batteryTemperatureSensor->state != batteryTemperature) {
-				this->batteryTemperatureSensor->publish_state(batteryTemperature);
-			}
-
-			if (this->chargingState != charging) {
-				this->chargingState = charging;
-				this->chargingSensor->publish_state(ToString(charging));
-			}
-
-			if (activity.compare(this->activitySensor->state) != 0) {
-				this->activitySensor->publish_state(activity);
-			}
-
-			if (this->driveSpeedSensor->state != this->speed) {
-				this->driveSpeedSensor->publish_state(this->speed);
-			}
-
-			if (oiMode.compare(this->oiModeSensor->state) != 0) {
-				this->oiModeSensor->publish_state(oiMode);
-			}
-
-			float rightMotorCurrentData = 0.001 * (rightMotorCurrent * 100) / 100;
-            if(this->rightMotorCurrentSensor->state != rightMotorCurrentData) {
-				this->rightMotorCurrentSensor->publish_state(rightMotorCurrentData);
-			}
-
-			float leftMotorCurrentData = 0.001 * (leftMotorCurrent * 100) / 100;
-            if(this->leftMotorCurrentSensor->state != leftMotorCurrentData) {
-				this->leftMotorCurrentSensor->publish_state(leftMotorCurrentData);
-			}
-
-            float mainBrushCurrentData = 0.001 * (mainBrushCurrent * 100) / 100;
-            if(this->mainBrushCurrentSensor->state != mainBrushCurrentData) {
-				this->mainBrushCurrentSensor->publish_state(mainBrushCurrentData);
-			}
-
-            float sideBrushCurrentData = 0.001 * (sideBrushCurrent * 100) / 100;
-            if(this->sideBrushCurrentSensor->state != sideBrushCurrentData) {
-				this->sideBrushCurrentSensor->publish_state(sideBrushCurrentData);
-			}
-
-			if (virtualWall == 1) {
-				this->virtualWallSensor->publish_state(true);
-			} else {
-				this->virtualWallSensor->publish_state(false);
-			}
-
-			if (chargingSources == 0) {
-				this->chargingSourcesSensor->publish_state(false);
-			} else {
-				this->chargingSourcesSensor->publish_state(true);
-			}
-
-			if (!wasDocked) {
-				if (buttons == 1) {
-					this->buttonsSensor->publish_state("Clean");
-				} else if (buttons == 2) {
-					this->buttonsSensor->publish_state("Spot");
-				} else if (buttons == 4) {
-					this->buttonsSensor->publish_state("Dock");
-				} else {
-					this->buttonsSensor->publish_state("None");
-				}
-			} else {
-				this->buttonsSensor->publish_state("None");
-			}
-
+		    // ВЫРЕЗАЛИ КОСТЫЛЬ: Блок "if (this->lazy650Enabled)" с таймером на 50 секунд удален полностью.
+		    // Робот больше не ловит циклический спам командами и спокойно спит на базе.
+		
+		    // Ниже идет оригинальный опрос всех датчиков, его мы оставляем нетронутым:
+		    uint8_t charging;
+		    uint16_t voltage;
+		    int16_t current;
+		    uint16_t batteryCharge;
+		    uint16_t batteryCapacity;
+		    int16_t batteryTemperature;
+		    int16_t rightMotorCurrent;
+		    int16_t leftMotorCurrent;
+		    int16_t mainBrushCurrent;
+		    int16_t sideBrushCurrent;
+		    uint8_t virtualWall;
+		    uint8_t chargingSources;
+		    uint8_t buttons;
+		
+		    flush();
+		
+		    uint8_t sensors[] = {
+		        SensorChargingState,
+		        SensorVoltage,
+		        SensorCurrent,
+		        SensorBatteryCharge,
+		        SensorBatteryCapacity,
+		        SensorBatteryTemperature,
+		        SensorOIMode,
+		        SensorRightMotorCurrent,
+		        SensorLeftMotorCurrent,
+		        SensorMainBrushCurrent,
+		        SensorSideBrushCurrent,
+		        SensorVirtualWall,
+		        SensorChargingSourcesAvailable,
+		        SensorButtons,
+		    };
+		
+		    uint8_t values[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		
+		    bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
+		    if (!success) {
+		        // Когда робот уйдет в глубокий сон, UART отключится. 
+		        // Этот лог просто зафиксирует, что робот спит. Это нормально и безопасно.
+		        ESP_LOGD("roomba", "Could not get sensor values from serial (Roomba is sleeping)");
+		        return;
+		    }
+		
+		    charging = values[0];
+		    voltage = values[1] * 256 + values[2];
+		    current = values[3] * 256 + values[4];
+		    batteryCharge = values[5] * 256 + values[6];
+		    batteryCapacity = values[7] * 256 + values[8];
+		    batteryTemperature = values[9];
+		    std::string oiMode = get_oimode(values[10]);
+		    rightMotorCurrent = values[11] * 256 + values[12]; 
+		    leftMotorCurrent = values[13] * 256 + values[14]; 
+		    mainBrushCurrent = values[15] * 256 + values[16];
+		    sideBrushCurrent = values[17] * 256 + values[18];
+		    virtualWall = values[19];
+		    chargingSources = values[20];
+		    buttons = values[21];
+		
+		    std::string activity = get_activity(charging, current);
+		    wasCleaning = activity == "Cleaning";
+		    wasDocked = activity == "Docked";
+		
+		    float voltageData = 0.001 * roundf(voltage * 100) / 100;
+		    if (this->voltageSensor->state != voltageData) {
+		        this->voltageSensor->publish_state(voltageData);
+		    }
+		
+		    float currentData = 0.001 * roundf(current * 100) / 100;
+		    if (this->currentSensor->state != currentData) {
+		        this->currentSensor->publish_state(currentData);
+		    }
+		
+		    float charge = 0.001 * roundf(batteryCharge * 100) / 100;
+		    if (this->batteryChargeSensor->state != charge) {
+		        this->batteryChargeSensor->publish_state(charge);
+		    }
+		
+		    float capacity = 0.001 * roundf(batteryCapacity * 100) / 100;
+		    if (this->batteryCapacitySensor->state != capacity) {
+		        this->batteryCapacitySensor->publish_state(capacity);
+		    }
+		
+		    float battery_level = 100.0 * ((1.0 * charge) / (1.0 * capacity));
+		    if (this->batteryPercentSensor->state != battery_level) {
+		        this->batteryPercentSensor->publish_state(battery_level);
+		    }
+		
+		    if (this->batteryTemperatureSensor->state != batteryTemperature) {
+		        this->batteryTemperatureSensor->publish_state(batteryTemperature);
+		    }
+		
+		    if (this->chargingState != charging) {
+		        this->chargingState = charging;
+		        this->chargingSensor->publish_state(ToString(charging));
+		    }
+		
+		    if (activity.compare(this->activitySensor->state) != 0) {
+		        this->activitySensor->publish_state(activity);
+		    }
+		
+		    if (this->driveSpeedSensor->state != this->speed) {
+		        this->driveSpeedSensor->publish_state(this->speed);
+		    }
+		
+		    if (oiMode.compare(this->oiModeSensor->state) != 0) {
+		        this->oiModeSensor->publish_state(oiMode);
+		    }
+		
+		    float rightMotorCurrentData = 0.001 * (rightMotorCurrent * 100) / 100;
+		    if(this->rightMotorCurrentSensor->state != rightMotorCurrentData) {
+		        this->rightMotorCurrentSensor->publish_state(rightMotorCurrentData);
+		    }
+		
+		    float leftMotorCurrentData = 0.001 * (leftMotorCurrent * 100) / 100;
+		    if(this->leftMotorCurrentSensor->state != leftMotorCurrentData) {
+		        this->leftMotorCurrentSensor->publish_state(leftMotorCurrentData);
+		    }
+		
+		    float mainBrushCurrentData = 0.001 * (mainBrushCurrent * 100) / 100;
+		    if(this->mainBrushCurrentSensor->state != mainBrushCurrentData) {
+		        this->mainBrushCurrentSensor->publish_state(mainBrushCurrentData);
+		    }
+		
+		    float sideBrushCurrentData = 0.001 * (sideBrushCurrent * 100) / 100;
+		    if(this->sideBrushCurrentSensor->state != sideBrushCurrentData) {
+		        this->sideBrushCurrentSensor->publish_state(sideBrushCurrentData);
+		    }
+		
+		    if (virtualWall == 1) {
+		        this->virtualWallSensor->publish_state(true);
+		    } else {
+		        this->virtualWallSensor->publish_state(false);
+		    }
+		
+		    if (chargingSources == 0) {
+		        this->chargingSourcesSensor->publish_state(false);
+		    } else {
+		        this->chargingSourcesSensor->publish_state(true);
+		    }
+		
+		    if (!wasDocked) {
+		        if (buttons == 1) {
+		            this->buttonsSensor->publish_state("Clean");
+		        } else if (buttons == 2) {
+		            this->buttonsSensor->publish_state("Spot");
+		        } else if (buttons == 4) {
+		            this->buttonsSensor->publish_state("Dock");
+		        } else {
+		            this->buttonsSensor->publish_state("None");
+		        }
+		    } else {
+		        this->buttonsSensor->publish_state("None");
+		    }
 		}
-
         // this function can be called from the Roomba yaml file as 
         // static_cast< RoombaComponent*> (id(my_roomba).get_component(0))->send_command("go_forward");
         void send_command(std::string command) {
