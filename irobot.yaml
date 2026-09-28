@@ -53,8 +53,7 @@ ota:
 
 web_server:
   port: 80
-  version: 3
-
+  
 status_led:
   pin:
     number: GPIO8
