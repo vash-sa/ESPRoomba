@@ -53,6 +53,7 @@ ota:
 
 web_server:
   port: 80
+  local: true
   
 status_led:
   pin:
