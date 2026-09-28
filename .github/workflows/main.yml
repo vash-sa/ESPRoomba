@@ -27,4 +27,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: roomba-firmware
-          path: .esphome/build/irobot/.pioenvs/irobot/firmware.bin
+          path: .esphome/build/irobot/.pioenvs/irobot/firmware*.bin
