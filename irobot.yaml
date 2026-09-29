@@ -42,8 +42,12 @@ wifi:
     ssid: "ASUS_W"
     password: "whiteWOLF667djkr"
   fast_connect: true
+  
+  # Снижаем мощность сигнала, чтобы не было просадок питания при старте
+  output_power: 9.5dBm  
+  
   ap:
-    ssid: ${friendly_name}
+    ssid: "${friendly_name}"
     password: "vash_sa_1965_5"
 
 captive_portal:
