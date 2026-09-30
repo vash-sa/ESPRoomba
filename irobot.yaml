@@ -31,8 +31,8 @@ logger:
   level: NONE  
 
 # Enable Home Assistant API
-#api:
-#  custom_services: true
+api:
+  custom_services: true
 
 preferences:
   flash_write_interval: 1min  # Заменили !secret на обычное значение
