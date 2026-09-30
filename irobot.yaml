@@ -45,7 +45,7 @@ wifi:
   
   # Снижаем мощность сигнала, чтобы не было просадок питания при старте
   output_power: 9.5dBm 
-  power_save_mode: light
+  #power_save_mode: light
   
   ap:
     ssid: "${friendly_name}"
