@@ -2,7 +2,7 @@
 
 #define ROOMBA_READ_TIMEOUT 200
 
-class RoombaComponent : public UARTDevice, public CustomAPIDevice, public PollingComponent { 
+class RoombaComponent : public UARTDevice, public PollingComponent { 
 	public:
 		//Sensor *distanceSensor;
 		Sensor *voltageSensor;
@@ -33,7 +33,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
     		// Прямой провод теперь в полной безопасности при любом флаге!
     		pinMode(this->brcPin, INPUT); 
 
-    		register_service(&RoombaComponent::on_command, "command", {"command"});
+    		//register_service(&RoombaComponent::on_command, "command", {"command"});
 		}
 
 
