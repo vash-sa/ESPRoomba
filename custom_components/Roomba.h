@@ -1,5 +1,5 @@
 #include "esphome.h"
-
+#include "esphome/components/api/api_server.h"
 #define ROOMBA_READ_TIMEOUT 200
 
 class RoombaComponent : public UARTDevice, public PollingComponent {
@@ -33,7 +33,7 @@ class RoombaComponent : public UARTDevice, public PollingComponent {
     		// Прямой провод теперь в полной безопасности при любом флаге!
     		pinMode(this->brcPin, INPUT); 
 
-    		api::global_api_server->register_user_service(new api::UserServiceTrigger<std::string>("command", {"command"}, [this](std::string command) { this->on_command(command); }));
+    		esphome::api::global_api_server->register_user_service(new esphome::api::UserServiceTrigger<std::string>("command", {"command"}, [this](std::string command) { this->on_command(command); }));
 		}
 
 
