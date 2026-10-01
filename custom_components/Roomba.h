@@ -52,8 +52,13 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 
 		
     	void update() override {
-		    // ВЫРЕЗАЛИ КОСТЫЛЬ: Блок "if (this->lazy650Enabled)" с таймером на 50 секунд удален полностью.
-		    // Робот больше не ловит циклический спам командами и спокойно спит на базе.
+		     if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
+		        // Мы отправляем старт только если робот не в активном режиме, предотвращая спам		        
+		        start_oi(); // Отправляем 128
+		        delay(30);
+		        safeMode(); // Отправляем 131
+		        delay(50);  // Даем роботу переварить смену режима перед очисткой буфера
+		    }
 		
 		    // Ниже идет оригинальный опрос всех датчиков, его мы оставляем нетронутым:
 		    uint8_t charging;
@@ -390,15 +395,15 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 	            ESP_LOGI("roomba", "go max");
 				alter_speed(1000);
 			} else if (command == "go_forward") {
-	            ESP_LOGI("roomba", "go forward");
-                this->speed = 200;
-                displayString("FWD ");
-				drive(this->speed, 0);
+			    ESP_LOGI("roomba", "go forward");
+			    this->speed = 200;
+			    displayString("FWD ");
+			    drive(this->speed, 0x8000); // ИСПРАВЛЕНО: 0x8000 вместо 0 для движения прямо!
 			} else if (command == "go_reverse") {
-	            ESP_LOGI("roomba", "go reverse");
-                this->speed = -200;
-                displayString("REV ");
-				drive(this->speed, 0);
+			    ESP_LOGI("roomba", "go reverse");
+			    this->speed = -200;
+			    displayString("REV ");
+			    drive(this->speed, 0x8000); // ИСПРАВЛЕНО: 0x8000 вместо 0 для движения прямо!
 			} else if (command == "go_faster") {
 	            ESP_LOGI("roomba", "go faster");
 				alter_speed(100);
