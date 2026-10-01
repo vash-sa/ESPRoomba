@@ -68,7 +68,7 @@ status_led:
 uart:
   id: uart_bus
   tx_pin: 6
-  rx_pin: 8
+  rx_pin: 3
   baud_rate: 115200
   # debug:
   #   direction: RX
