@@ -53,12 +53,19 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		
     	void update() override {
 		     if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
-		        // Мы отправляем старт только если робот не в активном режиме, предотвращая спам		        
-		        start_oi(); // Отправляем 128
-		        delay(30);
-		        safeMode(); // Отправляем 131
-		        delay(50);  // Даем роботу переварить смену режима перед очисткой буфера
-		    }
+	            // Робот услышал нас и погасил светодиод. Даем ему время переключить логику порта.
+	            start_oi(); // Отправляем 128
+	            
+	            // Увеличиваем паузу до 100 мс (чтобы Wi-Fi модули успели договориться)
+	            unsigned long start_time = millis();
+	            while(millis() - start_time < 100) { yield(); } 
+	            
+	            safeMode(); // Отправляем 131
+	            
+	            // Даем 150 мс, чтобы Roomba успела собрать первый пакет датчиков в буфер
+	            start_time = millis();
+	            while(millis() - start_time < 150) { yield(); }
+	        }
 		
 		    // Ниже идет оригинальный опрос всех датчиков, его мы оставляем нетронутым:
 		    uint8_t charging;
