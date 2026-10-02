@@ -129,7 +129,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		    std::string activity = get_activity(charging, current);
 		    wasCleaning = activity == "Cleaning";
 		    wasDocked = activity == "Docked";
-		
+		/*
 		    float voltageData = 0.001 * roundf(voltage * 100) / 100;
 		    if (this->voltageSensor->state != voltageData) {
 		        this->voltageSensor->publish_state(voltageData);
@@ -194,7 +194,46 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		    float sideBrushCurrentData = 0.001 * (sideBrushCurrent * 100) / 100;
 		    if(this->sideBrushCurrentSensor->state != sideBrushCurrentData) {
 		        this->sideBrushCurrentSensor->publish_state(sideBrushCurrentData);
-		    }
+		    }*/
+
+					    float voltageData = 0.001 * roundf(voltage * 100) / 100;
+		    this->voltageSensor->publish_state(voltageData);
+		
+		    float currentData = 0.001 * roundf(current * 100) / 100;
+		    this->currentSensor->publish_state(currentData);
+		
+		    float charge = 0.001 * roundf(batteryCharge * 100) / 100;
+		    this->batteryChargeSensor->publish_state(charge);
+		
+		    float capacity = 0.001 * roundf(batteryCapacity * 100) / 100;
+		    this->batteryCapacitySensor->publish_state(capacity);
+		
+		    float battery_level = 100.0 * ((1.0 * charge) / (1.0 * capacity));
+		    this->batteryPercentSensor->publish_state(battery_level);
+		
+		    this->batteryTemperatureSensor->publish_state(batteryTemperature);
+		
+		    this->chargingState = charging;
+		    this->chargingSensor->publish_state(ToString(charging));
+		
+		    this->activitySensor->publish_state(activity);
+		
+		    this->driveSpeedSensor->publish_state(this->speed);
+		
+		    this->oiModeSensor->publish_state(oiMode);
+		
+		    float rightMotorCurrentData = 0.001 * (rightMotorCurrent * 100) / 100;
+		    this->rightMotorCurrentSensor->publish_state(rightMotorCurrentData);
+		
+		    float leftMotorCurrentData = 0.001 * (leftMotorCurrent * 100) / 100;
+		    this->leftMotorCurrentSensor->publish_state(leftMotorCurrentData);
+		
+		    float mainBrushCurrentData = 0.001 * (mainBrushCurrent * 100) / 100;
+		    this->mainBrushCurrentSensor->publish_state(mainBrushCurrentData);
+		
+		    float sideBrushCurrentData = 0.001 * (sideBrushCurrent * 100) / 100;
+		    this->sideBrushCurrentSensor->publish_state(sideBrushCurrentData);
+
 		
 		    if (virtualWall == 1) {
 		        this->virtualWallSensor->publish_state(true);
