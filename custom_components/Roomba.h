@@ -263,79 +263,75 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		}*/
 
 	void update() override {
+		    // Убраны блокирующие циклы while, чтобы сетевой стек ESPHome и WebSockets работали без зависаний.
 		    if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
 		        start_oi(); // Отправляем 128
-		        
-		        unsigned long start_time = millis();
-		        while(millis() - start_time < 100) { yield(); } 
-		        
 		        safeMode(); // Отправляем 131
-		        
-		        start_time = millis();
-		        while(millis() - start_time < 150) { yield(); }
 		    }
+		
+		    uint8_t charging;
+		    uint16_t voltage;
+		    int16_t current;
+		    uint16_t batteryCharge;
+		    uint16_t batteryCapacity;
+		    int16_t batteryTemperature;
+		    int16_t rightMotorCurrent;
+		    int16_t leftMotorCurrent;
+		    int16_t mainBrushCurrent;
+		    int16_t sideBrushCurrent;
+		    uint8_t virtualWall;
+		    uint8_t chargingSources;
+		    uint8_t buttons;
 		
 		    flush();
 		
-		    // Запрашиваем стандартный системный Пакет №6 (все датчики одной пачкой)
-		    uint8_t packet_id = 6; 
-		    uint8_t values[52] = {0}; // Пакет №6 всегда строго 52 байта
+		    uint8_t sensors[] = {
+		        SensorChargingState,
+		        SensorVoltage,
+		        SensorCurrent,
+		        SensorBatteryCharge,
+		        SensorBatteryCapacity,
+		        SensorBatteryTemperature,
+		        SensorOIMode,
+		        SensorRightMotorCurrent,
+		        SensorLeftMotorCurrent,
+		        SensorMainBrushCurrent,
+		        SensorSideBrushCurrent,
+		        SensorVirtualWall,
+		        SensorChargingSourcesAvailable,
+		        SensorButtons,
+		    };
 		
-		    bool success = getSensorsList(&packet_id, 1, values, 52);
+		    uint8_t values[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		
+		    bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
 		    if (!success) {
-		        ESP_LOGD("roomba", "Could not get Packet 6 from serial (Roomba is sleeping)");
+		        // Если робот ушел в глубокий сон, UART отключится. Лог зафиксирует это состояние.
+		        ESP_LOGD("roomba", "Could not get sensor values from serial (Roomba is sleeping)");
 		        return;
 		    }
 		
-		    // Разбираем 52-байтовый пакет по официальной спецификации iRobot ROI:
-		    // Подсчет индексов строго зафиксирован документацией производителя
-		    uint8_t bumps_wheeldrops = values[0];
-		    uint8_t wall = values[1];
-		    uint8_t cliff_left = values[2];
-		    uint8_t cliff_front_left = values[3];
-		    uint8_t cliff_front_right = values[4];
-		    uint8_t cliff_right = values[5];
-		    uint8_t virtual_wall = values[6];
-		    uint8_t wheel_overcurrents = values[7];
-		    uint8_t dirt_detect = values[8];
-		    // values[9] - unused
-		    uint8_t buttons = values[10];
-		    
-		    // Датчики питания и аккумулятора:
-		    uint8_t charging = values[11];
-		    uint16_t voltage = (values[12] << 8) | values[13];
-		    int16_t current = (int16_t)((values[14] << 8) | values[15]);
-		    int16_t batteryTemperature = (int8_t)values[16];
-		    uint16_t batteryCharge = (values[17] << 8) | values[18];
-		    uint16_t batteryCapacity = (values[19] << 8) | values[20];
-		    
-		    // Дополнительные датчики (включая токи моторов и режим):
-		    uint16_t wall_signal = (values[21] << 8) | values[22];
-		    uint16_t cliff_left_signal = (values[23] << 8) | values[24];
-		    uint16_t cliff_front_left_signal = (values[25] << 8) | values[26];
-		    uint16_t cliff_front_right_signal = (values[27] << 8) | values[28];
-		    uint16_t cliff_right_signal = (values[29] << 8) | values[30];
-		    uint8_t chargingSources = values[31];
-		    uint8_t oiMode_raw = values[32];
-		    uint8_t song_number = values[33];
-		    uint8_t song_playing = values[34];
-		    uint8_t number_of_stream_packets = values[35];
-		    int16_t requested_velocity = (int16_t)((values[36] << 8) | values[37]);
-		    int16_t requested_radius = (int16_t)((values[38] << 8) | values[39]);
-		    int16_t requested_right_velocity = (int16_t)((values[40] << 8) | values[41]);
-		    int16_t requested_left_velocity = (int16_t)((values[42] << 8) | values[43]);
-		    int16_t leftMotorCurrent = (int16_t)((values[44] << 8) | values[45]);
-		    int16_t rightMotorCurrent = (int16_t)((values[46] << 8) | values[47]);
-		    int16_t mainBrushCurrent = (int16_t)((values[48] << 8) | values[49]);
-		    int16_t sideBrushCurrent = (int16_t)((values[50] << 8) | values[51]);
+		    // Побайтная сборка данных со строгими индексами массива по спецификации iRobot ROI
+		    charging = values[0];
+		    voltage = (values[1] * 256) + values[2];
+		    current = (int16_t)((values[3] * 256) + values[4]);
+		    batteryCharge = (values[5] * 256) + values[6];
+		    batteryCapacity = (values[7] * 256) + values[8];
+		    batteryTemperature = (int8_t)values[9];
+		    std::string oiMode = get_oimode(values[10]);
+		    rightMotorCurrent = (int16_t)((values[11] * 256) + values[12]); 
+		    leftMotorCurrent = (int16_t)((values[13] * 256) + values[14]); 
+		    mainBrushCurrent = (int16_t)((values[15] * 256) + values[16]);
+		    sideBrushCurrent = (int16_t)((values[17] * 256) + values[18]);
+		    virtualWall = values[19];
+		    chargingSources = values[20];
+		    buttons = values[21];
 		
-		    // Текстовые статусы
-		    std::string oiMode = get_oimode(oiMode_raw);
 		    std::string activity = get_activity(charging, current);
 		    wasCleaning = activity == "Cleaning";
 		    wasDocked = activity == "Docked";
 		
-		    // Публикация данных в ESPHome без блокирующих условий 'if'
+		    // Прямая публикация данных на веб-страницу ESPHome без условий 'if'
 		    float voltageData = 0.001 * voltage;
 		    this->voltageSensor->publish_state(voltageData);
 		
@@ -348,7 +344,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		    float capacity = 0.001 * batteryCapacity;
 		    this->batteryCapacitySensor->publish_state(capacity);
 		
-		    // Защита от деления на 0, чтобы избежать появления NA
+		    // Защита от деления на 0, чтобы избежать выпадения процентов в 'NA' (NaN)
 		    float battery_level = 0.0;
 		    if (batteryCapacity > 0) {
 		        battery_level = 100.0 * ((float)batteryCharge / (float)batteryCapacity);
@@ -369,7 +365,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		    this->mainBrushCurrentSensor->publish_state(0.001 * mainBrushCurrent);
 		    this->sideBrushCurrentSensor->publish_state(0.001 * sideBrushCurrent);
 		
-		    this->virtualWallSensor->publish_state(virtual_wall == 1);
+		    this->virtualWallSensor->publish_state(virtualWall == 1);
 		    this->chargingSourcesSensor->publish_state(chargingSources != 0);
 		
 		    if (!wasDocked) {
@@ -386,6 +382,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		        this->buttonsSensor->publish_state("None");
 		    }
 		}
+
 
 
         // this function can be called from the Roomba yaml file as 
