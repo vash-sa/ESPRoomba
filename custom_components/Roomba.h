@@ -50,339 +50,151 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			register_service(&RoombaComponent::on_command, "command", {"command"});
 		}*/
 
-		/*
-    	void update() override {
-		     if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
-	            // Робот услышал нас и погасил светодиод. Даем ему время переключить логику порта.
-	            start_oi(); // Отправляем 128
-	            
-	            // Увеличиваем паузу до 100 мс (чтобы Wi-Fi модули успели договориться)
-	            unsigned long start_time = millis();
-	            while(millis() - start_time < 100) { yield(); } 
-	            
-	            safeMode(); // Отправляем 131
-	            
-	            // Даем 150 мс, чтобы Roomba успела собрать первый пакет датчиков в буфер
-	            start_time = millis();
-	            while(millis() - start_time < 150) { yield(); }
-	        }
-		
-		    // Ниже идет оригинальный опрос всех датчиков, его мы оставляем нетронутым:
-		    uint8_t charging;
-		    uint16_t voltage;
-		    int16_t current;
-		    uint16_t batteryCharge;
-		    uint16_t batteryCapacity;
-		    int16_t batteryTemperature;
-		    int16_t rightMotorCurrent;
-		    int16_t leftMotorCurrent;
-		    int16_t mainBrushCurrent;
-		    int16_t sideBrushCurrent;
-		    uint8_t virtualWall;
-		    uint8_t chargingSources;
-		    uint8_t buttons;
-		
-		    flush();
-		
-		    uint8_t sensors[] = {
-		        SensorChargingState,
-		        SensorVoltage,
-		        SensorCurrent,
-		        SensorBatteryCharge,
-		        SensorBatteryCapacity,
-		        SensorBatteryTemperature,
-		        SensorOIMode,
-		        SensorRightMotorCurrent,
-		        SensorLeftMotorCurrent,
-		        SensorMainBrushCurrent,
-		        SensorSideBrushCurrent,
-		        SensorVirtualWall,
-		        SensorChargingSourcesAvailable,
-		        SensorButtons,
-		    };
-		
-		    uint8_t values[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-		
-		    bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
-		    if (!success) {
-		        // Когда робот уйдет в глубокий сон, UART отключится. 
-		        // Этот лог просто зафиксирует, что робот спит. Это нормально и безопасно.
-		        ESP_LOGD("roomba", "Could not get sensor values from serial (Roomba is sleeping)");
-		        return;
-		    }
-		
-		    charging = values[0];
-		    voltage = values[1] * 256 + values[2];
-		    current = values[3] * 256 + values[4];
-		    batteryCharge = values[5] * 256 + values[6];
-		    batteryCapacity = values[7] * 256 + values[8];
-		    batteryTemperature = values[9];
-		    std::string oiMode = get_oimode(values[10]);
-		    rightMotorCurrent = values[11] * 256 + values[12]; 
-		    leftMotorCurrent = values[13] * 256 + values[14]; 
-		    mainBrushCurrent = values[15] * 256 + values[16];
-		    sideBrushCurrent = values[17] * 256 + values[18];
-		    virtualWall = values[19];
-		    chargingSources = values[20];
-		    buttons = values[21];
-		
-		    std::string activity = get_activity(charging, current);
-		    wasCleaning = activity == "Cleaning";
-		    wasDocked = activity == "Docked";
-		/*
-		    float voltageData = 0.001 * roundf(voltage * 100) / 100;
-		    if (this->voltageSensor->state != voltageData) {
-		        this->voltageSensor->publish_state(voltageData);
-		    }
-		
-		    float currentData = 0.001 * roundf(current * 100) / 100;
-		    if (this->currentSensor->state != currentData) {
-		        this->currentSensor->publish_state(currentData);
-		    }
-		
-		    float charge = 0.001 * roundf(batteryCharge * 100) / 100;
-		    if (this->batteryChargeSensor->state != charge) {
-		        this->batteryChargeSensor->publish_state(charge);
-		    }
-		
-		    float capacity = 0.001 * roundf(batteryCapacity * 100) / 100;
-		    if (this->batteryCapacitySensor->state != capacity) {
-		        this->batteryCapacitySensor->publish_state(capacity);
-		    }
-		
-		    float battery_level = 100.0 * ((1.0 * charge) / (1.0 * capacity));
-		    if (this->batteryPercentSensor->state != battery_level) {
-		        this->batteryPercentSensor->publish_state(battery_level);
-		    }
-		
-		    if (this->batteryTemperatureSensor->state != batteryTemperature) {
-		        this->batteryTemperatureSensor->publish_state(batteryTemperature);
-		    }
-		
-		    if (this->chargingState != charging) {
-		        this->chargingState = charging;
-		        this->chargingSensor->publish_state(ToString(charging));
-		    }
-		
-		    if (activity.compare(this->activitySensor->state) != 0) {
-		        this->activitySensor->publish_state(activity);
-		    }
-		
-		    if (this->driveSpeedSensor->state != this->speed) {
-		        this->driveSpeedSensor->publish_state(this->speed);
-		    }
-		
-		    if (oiMode.compare(this->oiModeSensor->state) != 0) {
-		        this->oiModeSensor->publish_state(oiMode);
-		    }
-		
-		    float rightMotorCurrentData = 0.001 * (rightMotorCurrent * 100) / 100;
-		    if(this->rightMotorCurrentSensor->state != rightMotorCurrentData) {
-		        this->rightMotorCurrentSensor->publish_state(rightMotorCurrentData);
-		    }
-		
-		    float leftMotorCurrentData = 0.001 * (leftMotorCurrent * 100) / 100;
-		    if(this->leftMotorCurrentSensor->state != leftMotorCurrentData) {
-		        this->leftMotorCurrentSensor->publish_state(leftMotorCurrentData);
-		    }
-		
-		    float mainBrushCurrentData = 0.001 * (mainBrushCurrent * 100) / 100;
-		    if(this->mainBrushCurrentSensor->state != mainBrushCurrentData) {
-		        this->mainBrushCurrentSensor->publish_state(mainBrushCurrentData);
-		    }
-		
-		    float sideBrushCurrentData = 0.001 * (sideBrushCurrent * 100) / 100;
-		    if(this->sideBrushCurrentSensor->state != sideBrushCurrentData) {
-		        this->sideBrushCurrentSensor->publish_state(sideBrushCurrentData);
-		    }
+		void update() override {
+    // Убраны блокирующие циклы while, чтобы сетевой стек ESPHome и WebSockets работали без зависаний.
+    if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
+        start_oi(); // Отправляем 128
+        safeMode(); // Отправляем 131
+    }
 
-					    float voltageData = 0.001 * roundf(voltage * 100) / 100;
-		    this->voltageSensor->publish_state(voltageData);
-		
-		    float currentData = 0.001 * roundf(current * 100) / 100;
-		    this->currentSensor->publish_state(currentData);
-		
-		    float charge = 0.001 * roundf(batteryCharge * 100) / 100;
-		    this->batteryChargeSensor->publish_state(charge);
-		
-		    float capacity = 0.001 * roundf(batteryCapacity * 100) / 100;
-		    this->batteryCapacitySensor->publish_state(capacity);
-		
-		    float battery_level = 100.0 * ((1.0 * charge) / (1.0 * capacity));
-		    this->batteryPercentSensor->publish_state(battery_level);
-		
-		    this->batteryTemperatureSensor->publish_state(batteryTemperature);
-		
-		    this->chargingState = charging;
-		    this->chargingSensor->publish_state(ToString(charging));
-		
-		    this->activitySensor->publish_state(activity);
-		
-		    this->driveSpeedSensor->publish_state(this->speed);
-		
-		    this->oiModeSensor->publish_state(oiMode);
-		
-		    float rightMotorCurrentData = 0.001 * (rightMotorCurrent * 100) / 100;
-		    this->rightMotorCurrentSensor->publish_state(rightMotorCurrentData);
-		
-		    float leftMotorCurrentData = 0.001 * (leftMotorCurrent * 100) / 100;
-		    this->leftMotorCurrentSensor->publish_state(leftMotorCurrentData);
-		
-		    float mainBrushCurrentData = 0.001 * (mainBrushCurrent * 100) / 100;
-		    this->mainBrushCurrentSensor->publish_state(mainBrushCurrentData);
-		
-		    float sideBrushCurrentData = 0.001 * (sideBrushCurrent * 100) / 100;
-		    this->sideBrushCurrentSensor->publish_state(sideBrushCurrentData);
+    uint8_t charging;
+    uint16_t voltage;
+    int16_t current;
+    uint16_t batteryCharge;
+    uint16_t batteryCapacity;
+    int16_t batteryTemperature;
+    int16_t rightMotorCurrent;
+    int16_t leftMotorCurrent;
+    int16_t mainBrushCurrent;
+    int16_t sideBrushCurrent;
+    uint8_t virtualWall;
+    uint8_t chargingSources;
+    uint8_t buttons;
 
-		
-		    if (virtualWall == 1) {
-		        this->virtualWallSensor->publish_state(true);
-		    } else {
-		        this->virtualWallSensor->publish_state(false);
-		    }
-		
-		    if (chargingSources == 0) {
-		        this->chargingSourcesSensor->publish_state(false);
-		    } else {
-		        this->chargingSourcesSensor->publish_state(true);
-		    }
-		
-		    if (!wasDocked) {
-		        if (buttons == 1) {
-		            this->buttonsSensor->publish_state("Clean");
-		        } else if (buttons == 2) {
-		            this->buttonsSensor->publish_state("Spot");
-		        } else if (buttons == 4) {
-		            this->buttonsSensor->publish_state("Dock");
-		        } else {
-		            this->buttonsSensor->publish_state("None");
-		        }
-		    } else {
-		        this->buttonsSensor->publish_state("None");
-		    }
-		}*/
+    flush();
 
-	void update() override {
-		    // Убраны блокирующие циклы while, чтобы сетевой стек ESPHome и WebSockets работали без зависаний.
-		    if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
-		        start_oi(); // Отправляем 128
-		        safeMode(); // Отправляем 131
-		    }
-		
-		    uint8_t charging;
-		    uint16_t voltage;
-		    int16_t current;
-		    uint16_t batteryCharge;
-		    uint16_t batteryCapacity;
-		    int16_t batteryTemperature;
-		    int16_t rightMotorCurrent;
-		    int16_t leftMotorCurrent;
-		    int16_t mainBrushCurrent;
-		    int16_t sideBrushCurrent;
-		    uint8_t virtualWall;
-		    uint8_t chargingSources;
-		    uint8_t buttons;
-		
-		    flush();
-		
-		    uint8_t sensors[] = {
-		        SensorChargingState,
-		        SensorVoltage,
-		        SensorCurrent,
-		        SensorBatteryCharge,
-		        SensorBatteryCapacity,
-		        SensorBatteryTemperature,
-		        SensorOIMode,
-		        SensorRightMotorCurrent,
-		        SensorLeftMotorCurrent,
-		        SensorMainBrushCurrent,
-		        SensorSideBrushCurrent,
-		        SensorVirtualWall,
-		        SensorChargingSourcesAvailable,
-		        SensorButtons,
-		    };
-		
-		    uint8_t values[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-		
-		    bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
-		    if (!success) {
-		        // Если робот ушел в глубокий сон, UART отключится. Лог зафиксирует это состояние.
-		        ESP_LOGD("roomba", "Could not get sensor values from serial (Roomba is sleeping)");
-		        return;
-		    }
-		
-		    // Побайтная сборка данных со строгими индексами массива по спецификации iRobot ROI
-		    charging = values[0];
-		    voltage = (values[1] * 256) + values[2];
-		    current = (int16_t)((values[3] * 256) + values[4]);
-		    batteryCharge = (values[5] * 256) + values[6];
-		    batteryCapacity = (values[7] * 256) + values[8];
-		    batteryTemperature = (int8_t)values[9];
-		    std::string oiMode = get_oimode(values[10]);
-		    rightMotorCurrent = (int16_t)((values[11] * 256) + values[12]); 
-		    leftMotorCurrent = (int16_t)((values[13] * 256) + values[14]); 
-		    mainBrushCurrent = (int16_t)((values[15] * 256) + values[16]);
-		    sideBrushCurrent = (int16_t)((values[17] * 256) + values[18]);
-		    virtualWall = values[19];
-		    chargingSources = values[20];
-		    buttons = values[21];
-		
-		    std::string activity = get_activity(charging, current);
-		    wasCleaning = activity == "Cleaning";
-		    wasDocked = activity == "Docked";
-		
-		    // Прямая публикация данных на веб-страницу ESPHome без условий 'if'
-		    float voltageData = 0.001 * voltage;
-		    this->voltageSensor->publish_state(voltageData);
-		
-		    float currentData = 0.001 * current;
-		    this->currentSensor->publish_state(currentData);
-		
-		    float charge = 0.001 * batteryCharge;
-		    this->batteryChargeSensor->publish_state(charge);
-		
-		    float capacity = 0.001 * batteryCapacity;
-		    this->batteryCapacitySensor->publish_state(capacity);
-		
-		    // Защита от деления на 0, чтобы избежать выпадения процентов в 'NA' (NaN)
-		    float battery_level = 0.0;
-		    if (batteryCapacity > 0) {
-		        battery_level = 100.0 * ((float)batteryCharge / (float)batteryCapacity);
-		    }
-		    this->batteryPercentSensor->publish_state(battery_level);
-		
-		    this->batteryTemperatureSensor->publish_state(batteryTemperature);
-		
-		    this->chargingState = charging;
-		    this->chargingSensor->publish_state(ToString(charging));
-		
-		    this->activitySensor->publish_state(activity);
-		    this->driveSpeedSensor->publish_state(this->speed);
-		    this->oiModeSensor->publish_state(oiMode);
-		
-		    this->rightMotorCurrentSensor->publish_state(0.001 * rightMotorCurrent);
-		    this->leftMotorCurrentSensor->publish_state(0.001 * leftMotorCurrent);
-		    this->mainBrushCurrentSensor->publish_state(0.001 * mainBrushCurrent);
-		    this->sideBrushCurrentSensor->publish_state(0.001 * sideBrushCurrent);
-		
-		    this->virtualWallSensor->publish_state(virtualWall == 1);
-		    this->chargingSourcesSensor->publish_state(chargingSources != 0);
-		
-		    if (!wasDocked) {
-		        if (buttons == 1) {
-		            this->buttonsSensor->publish_state("Clean");
-		        } else if (buttons == 2) {
-		            this->buttonsSensor->publish_state("Spot");
-		        } else if (buttons == 4) {
-		            this->buttonsSensor->publish_state("Dock");
-		        } else {
-		            this->buttonsSensor->publish_state("None");
-		        }
-		    } else {
-		        this->buttonsSensor->publish_state("None");
-		    }
-		}
+    uint8_t sensors[] = {
+        SensorChargingState,
+        SensorVoltage,
+        SensorCurrent,
+        SensorBatteryCharge,
+        SensorBatteryCapacity,
+        SensorBatteryTemperature,
+        SensorOIMode,
+        SensorRightMotorCurrent,
+        SensorLeftMotorCurrent,
+        SensorMainBrushCurrent,
+        SensorSideBrushCurrent,
+        SensorVirtualWall,
+        SensorChargingSourcesAvailable,
+        SensorButtons,
+    };
 
+    uint8_t values[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
+    
+    // === ВОТ СЮДА ОНО ВСТАВЛЕНО ВМЕСТО СТАРОГО IF (!SUCCESS) ===
+    if (!success) {
+        ESP_LOGD("roomba", "Could not get sensor values from serial (Roomba is sleeping)");
+        
+        // Отправляем понятный текст в строковые сенсоры на веб-страницу
+        this->oiModeSensor->publish_state("OFFLINE");
+        this->activitySensor->publish_state("Нет связи");
+        this->chargingSensor->publish_state("Недоступно");
+        this->buttonsSensor->publish_state("None");
+
+        // Вместо NA выводим 0 в числовые поля (если мешает, можно удалить строки ниже)
+        this->voltageSensor->publish_state(0.0);
+        this->currentSensor->publish_state(0.0);
+        this->batteryChargeSensor->publish_state(0.0);
+        this->batteryCapacitySensor->publish_state(0.0);
+        this->batteryPercentSensor->publish_state(0.0);
+        this->batteryTemperatureSensor->publish_state(0.0);
+        this->driveSpeedSensor->publish_state(0.0);
+        this->rightMotorCurrentSensor->publish_state(0.0);
+        this->leftMotorCurrentSensor->publish_state(0.0);
+        this->mainBrushCurrentSensor->publish_state(0.0);
+        this->sideBrushCurrentSensor->publish_state(0.0);
+
+        this->virtualWallSensor->publish_state(false);
+        this->chargingSourcesSensor->publish_state(false);
+
+        return; // Тормозим выполнение, чтобы не парсить пустой мусор
+    }
+    // ========================================================
+
+    // Побайтная сборка данных со строгими индексами массива по спецификации iRobot ROI
+    charging = values[0];
+    voltage = (values[1] * 256) + values[2];
+    current = (int16_t)((values[3] * 256) + values[4]);
+    batteryCharge = (values[5] * 256) + values[6];
+    batteryCapacity = (values[7] * 256) + values[8];
+    batteryTemperature = (int8_t)values[9];
+    std::string oiMode = get_oimode(values[10]);
+    rightMotorCurrent = (int16_t)((values[11] * 256) + values[12]); 
+    leftMotorCurrent = (int16_t)((values[13] * 256) + values[14]); 
+    mainBrushCurrent = (int16_t)((values[15] * 256) + values[16]);
+    sideBrushCurrent = (int16_t)((values[17] * 256) + values[18]);
+    virtualWall = values[19];
+    chargingSources = values[20];
+    buttons = values[21];
+
+    std::string activity = get_activity(charging, current);
+    wasCleaning = activity == "Cleaning";
+    wasDocked = activity == "Docked";
+
+    // Прямая публикация данных на веб-страницу ESPHome без условий 'if'
+    float voltageData = 0.001 * voltage;
+    this->voltageSensor->publish_state(voltageData);
+
+    float currentData = 0.001 * current;
+    this->currentSensor->publish_state(currentData);
+
+    float charge = 0.001 * batteryCharge;
+    this->batteryChargeSensor->publish_state(charge);
+
+    float capacity = 0.001 * batteryCapacity;
+    this->batteryCapacitySensor->publish_state(capacity);
+
+    // Защита от деления на 0, чтобы избежать выпадения процентов в 'NA' (NaN)
+    float battery_level = 0.0;
+    if (batteryCapacity > 0) {
+        battery_level = 100.0 * ((float)batteryCharge / (float)batteryCapacity);
+    }
+    this->batteryPercentSensor->publish_state(battery_level);
+
+    this->batteryTemperatureSensor->publish_state(batteryTemperature);
+
+    this->chargingState = charging;
+    this->chargingSensor->publish_state(ToString(charging));
+
+    this->activitySensor->publish_state(activity);
+    this->driveSpeedSensor->publish_state(this->speed);
+    this->oiModeSensor->publish_state(oiMode);
+
+    this->rightMotorCurrentSensor->publish_state(0.001 * rightMotorCurrent);
+    this->leftMotorCurrentSensor->publish_state(0.001 * leftMotorCurrent);
+    this->mainBrushCurrentSensor->publish_state(0.001 * mainBrushCurrent);
+    this->sideBrushCurrentSensor->publish_state(0.001 * sideBrushCurrent);
+
+    this->virtualWallSensor->publish_state(virtualWall == 1);
+    this->chargingSourcesSensor->publish_state(chargingSources != 0);
+
+    if (!wasDocked) {
+        if (buttons == 1) {
+            this->buttonsSensor->publish_state("Clean");
+        } else if (buttons == 2) {
+            this->buttonsSensor->publish_state("Spot");
+        } else if (buttons == 4) {
+            this->buttonsSensor->publish_state("Dock");
+        } else {
+            this->buttonsSensor->publish_state("None");
+        }
+    } else {
+        this->buttonsSensor->publish_state("None");
+    }
+}
 
 
         // this function can be called from the Roomba yaml file as 
