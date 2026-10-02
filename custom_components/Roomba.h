@@ -50,7 +50,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			register_service(&RoombaComponent::on_command, "command", {"command"});
 		}*/
 
-		
+		/*
     	void update() override {
 		     if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
 	            // Робот услышал нас и погасил светодиод. Даем ему время переключить логику порта.
@@ -194,7 +194,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		    float sideBrushCurrentData = 0.001 * (sideBrushCurrent * 100) / 100;
 		    if(this->sideBrushCurrentSensor->state != sideBrushCurrentData) {
 		        this->sideBrushCurrentSensor->publish_state(sideBrushCurrentData);
-		    }*/
+		    }
 
 					    float voltageData = 0.001 * roundf(voltage * 100) / 100;
 		    this->voltageSensor->publish_state(voltageData);
@@ -260,10 +260,137 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		    } else {
 		        this->buttonsSensor->publish_state("None");
 		    }
+		}*/
+
+	void update() override {
+		    if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
+		        start_oi(); // Отправляем 128
+		        
+		        unsigned long start_time = millis();
+		        while(millis() - start_time < 100) { yield(); } 
+		        
+		        safeMode(); // Отправляем 131
+		        
+		        start_time = millis();
+		        while(millis() - start_time < 150) { yield(); }
+		    }
+		
+		    flush();
+		
+		    // Запрашиваем стандартный системный Пакет №6 (все датчики одной пачкой)
+		    uint8_t packet_id = 6; 
+		    uint8_t values[52] = {0}; // Пакет №6 всегда строго 52 байта
+		
+		    bool success = getSensorsList(&packet_id, 1, values, 52);
+		    if (!success) {
+		        ESP_LOGD("roomba", "Could not get Packet 6 from serial (Roomba is sleeping)");
+		        return;
+		    }
+		
+		    // Разбираем 52-байтовый пакет по официальной спецификации iRobot ROI:
+		    // Подсчет индексов строго зафиксирован документацией производителя
+		    uint8_t bumps_wheeldrops = values[0];
+		    uint8_t wall = values[1];
+		    uint8_t cliff_left = values[2];
+		    uint8_t cliff_front_left = values[3];
+		    uint8_t cliff_front_right = values[4];
+		    uint8_t cliff_right = values[5];
+		    uint8_t virtual_wall = values[6];
+		    uint8_t wheel_overcurrents = values[7];
+		    uint8_t dirt_detect = values[8];
+		    // values[9] - unused
+		    uint8_t buttons = values[10];
+		    
+		    // Датчики питания и аккумулятора:
+		    uint8_t charging = values[11];
+		    uint16_t voltage = (values[12] << 8) | values[13];
+		    int16_t current = (int16_t)((values[14] << 8) | values[15]);
+		    int16_t batteryTemperature = (int8_t)values[16];
+		    uint16_t batteryCharge = (values[17] << 8) | values[18];
+		    uint16_t batteryCapacity = (values[19] << 8) | values[20];
+		    
+		    // Дополнительные датчики (включая токи моторов и режим):
+		    uint16_t wall_signal = (values[21] << 8) | values[22];
+		    uint16_t cliff_left_signal = (values[23] << 8) | values[24];
+		    uint16_t cliff_front_left_signal = (values[25] << 8) | values[26];
+		    uint16_t cliff_front_right_signal = (values[27] << 8) | values[28];
+		    uint16_t cliff_right_signal = (values[29] << 8) | values[30];
+		    uint8_t chargingSources = values[31];
+		    uint8_t oiMode_raw = values[32];
+		    uint8_t song_number = values[33];
+		    uint8_t song_playing = values[34];
+		    uint8_t number_of_stream_packets = values[35];
+		    int16_t requested_velocity = (int16_t)((values[36] << 8) | values[37]);
+		    int16_t requested_radius = (int16_t)((values[38] << 8) | values[39]);
+		    int16_t requested_right_velocity = (int16_t)((values[40] << 8) | values[41]);
+		    int16_t requested_left_velocity = (int16_t)((values[42] << 8) | values[43]);
+		    int16_t leftMotorCurrent = (int16_t)((values[44] << 8) | values[45]);
+		    int16_t rightMotorCurrent = (int16_t)((values[46] << 8) | values[47]);
+		    int16_t mainBrushCurrent = (int16_t)((values[48] << 8) | values[49]);
+		    int16_t sideBrushCurrent = (int16_t)((values[50] << 8) | values[51]);
+		
+		    // Текстовые статусы
+		    std::string oiMode = get_oimode(oiMode_raw);
+		    std::string activity = get_activity(charging, current);
+		    wasCleaning = activity == "Cleaning";
+		    wasDocked = activity == "Docked";
+		
+		    // Публикация данных в ESPHome без блокирующих условий 'if'
+		    float voltageData = 0.001 * voltage;
+		    this->voltageSensor->publish_state(voltageData);
+		
+		    float currentData = 0.001 * current;
+		    this->currentSensor->publish_state(currentData);
+		
+		    float charge = 0.001 * batteryCharge;
+		    this->batteryChargeSensor->publish_state(charge);
+		
+		    float capacity = 0.001 * batteryCapacity;
+		    this->batteryCapacitySensor->publish_state(capacity);
+		
+		    // Защита от деления на 0, чтобы избежать появления NA
+		    float battery_level = 0.0;
+		    if (batteryCapacity > 0) {
+		        battery_level = 100.0 * ((float)batteryCharge / (float)batteryCapacity);
+		    }
+		    this->batteryPercentSensor->publish_state(battery_level);
+		
+		    this->batteryTemperatureSensor->publish_state(batteryTemperature);
+		
+		    this->chargingState = charging;
+		    this->chargingSensor->publish_state(ToString(charging));
+		
+		    this->activitySensor->publish_state(activity);
+		    this->driveSpeedSensor->publish_state(this->speed);
+		    this->oiModeSensor->publish_state(oiMode);
+		
+		    this->rightMotorCurrentSensor->publish_state(0.001 * rightMotorCurrent);
+		    this->leftMotorCurrentSensor->publish_state(0.001 * leftMotorCurrent);
+		    this->mainBrushCurrentSensor->publish_state(0.001 * mainBrushCurrent);
+		    this->sideBrushCurrentSensor->publish_state(0.001 * sideBrushCurrent);
+		
+		    this->virtualWallSensor->publish_state(virtual_wall == 1);
+		    this->chargingSourcesSensor->publish_state(chargingSources != 0);
+		
+		    if (!wasDocked) {
+		        if (buttons == 1) {
+		            this->buttonsSensor->publish_state("Clean");
+		        } else if (buttons == 2) {
+		            this->buttonsSensor->publish_state("Spot");
+		        } else if (buttons == 4) {
+		            this->buttonsSensor->publish_state("Dock");
+		        } else {
+		            this->buttonsSensor->publish_state("None");
+		        }
+		    } else {
+		        this->buttonsSensor->publish_state("None");
+		    }
 		}
+
+
         // this function can be called from the Roomba yaml file as 
         // static_cast< RoombaComponent*> (id(my_roomba).get_component(0))->send_command("go_forward");
-        void send_command(std::string command) {
+    void send_command(std::string command) {
             on_command(command);
         }
 
