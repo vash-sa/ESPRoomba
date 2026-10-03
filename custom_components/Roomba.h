@@ -541,7 +541,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			write(SafeCmd);
 		}
 
-		std::string get_oimode(uint8_t mode) {
+		/*std::string get_oimode(uint8_t mode) {
 			switch(mode) {
 				case 0: return "off";
 				case 1: return "passive";
@@ -549,7 +549,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 				case 3: return "full";
 				default: return "unknown";
 			}
-		}
+		}*/
 
 		void clean() {
 			write(CleanCmd);
@@ -606,12 +606,12 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			}
 		}
 
-		bool getSensorsList(uint8_t* packetIDs, uint8_t numPacketIDs, uint8_t* dest, uint8_t len){
+	/*	bool getSensorsList(uint8_t* packetIDs, uint8_t numPacketIDs, uint8_t* dest, uint8_t len){
 			write(SensorsListCmd);
 			write(numPacketIDs);
 			write_array(packetIDs, numPacketIDs);
 			return getData(dest, len);
-		}
+		}*/
 
 		bool getData(uint8_t* dest, uint8_t len) {
 			while (len-- > 0) {
@@ -627,7 +627,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			return true;
 		}
 
-		std::string get_activity(uint8_t charging, int16_t current) {
+	/*	std::string get_activity(uint8_t charging, int16_t current) {
 			bool isCharging = charging == ChargeStateReconditioningCharging || charging == ChargeStateFullCharging || charging == ChargeStateTrickleCharging;
 			
 			if (current > -50)
@@ -637,9 +637,9 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			else if (current < -300)
 				return "Cleaning";
 			return "Lost";
-		}
+		}*/
 
-		inline const char* ToString(uint8_t chargeState) {
+	/*	inline const char* ToString(uint8_t chargeState) {
 			switch (chargeState) {
 				case ChargeStateNotCharging:			return "Not Charging";
 				case ChargeStateReconditioningCharging:	return "Reconditioning Charging";
@@ -649,5 +649,5 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 				case ChargeStateFault:					return "Fault";
 				default:								return "Unknown Charging State";
 			}
-		}
+		}*/
 };
