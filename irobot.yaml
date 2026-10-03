@@ -91,6 +91,7 @@ binary_sensor:
     lambda: |-
         auto r = ${init}
         return {r->vacuumSensor, r->virtualWallSensor, r->chargingSourcesSensor};
+    update_interval: 5s
     binary_sensors:
       - name: "${name} vacuum state"
         id: "${id}_vacuum"
@@ -107,6 +108,7 @@ sensor:
     lambda: |-
         auto r = ${init}
         return {r->voltageSensor, r->currentSensor, r->batteryChargeSensor, r->batteryCapacitySensor, r->batteryPercentSensor, r->batteryTemperatureSensor, r->driveSpeedSensor, r->rightMotorCurrentSensor, r->leftMotorCurrentSensor, r->mainBrushCurrentSensor, r->sideBrushCurrentSensor};
+    update_interval: 5s
     sensors:
       - name: "${name} voltage"
         unit_of_measurement: "V"
