@@ -83,7 +83,6 @@ time:
 custom_component:
   - lambda: |-
       auto r = ${init}
-      r->set_update_interval(5000);
       return {r};
     id: my_roomba
 
