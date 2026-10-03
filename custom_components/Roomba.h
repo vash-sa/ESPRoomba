@@ -449,9 +449,13 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
     	}
 
 		void start_oi() {
-			write(StartCmd);
-		}
-
+        // Очищаем входной буфер от мусора при старте
+        while (this->available() > 0) { 
+            this->read(); 
+        }
+        this->write(StartCmd); 
+        delay(50);
+   		 }
         void reset() {
             write(ResetCmd);
         }
@@ -538,8 +542,9 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		}
 
 		void safeMode() {
-			write(SafeCmd);
-		}
+	        this->write(SafeCmd); 
+	        delay(50);
+	    }
 
 		/*std::string get_oimode(uint8_t mode) {
 			switch(mode) {
