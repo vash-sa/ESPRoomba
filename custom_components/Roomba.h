@@ -51,88 +51,104 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		}*/
 
 		void update() override {
-    if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
-        start_oi(); 
-        safeMode(); 
-    }
-
-    uint8_t charging = 0;
-    uint16_t voltage = 0;
-    int16_t current = 0;
-    uint16_t batteryCharge = 0;
-    uint16_t batteryCapacity = 0;
-    int16_t batteryTemperature = 0;
-    int16_t rightMotorCurrent = 0;
-    int16_t leftMotorCurrent = 0;
-    int16_t mainBrushCurrent = 0;
-    int16_t sideBrushCurrent = 0;
-    uint8_t virtualWall = 0;
-    uint8_t chargingSources = 0;
-    uint8_t buttons = 0;
-
-    flush();
-
-    uint8_t sensors[] = {
-        SensorChargingState, SensorVoltage, SensorCurrent, SensorBatteryCharge,
-        SensorBatteryCapacity, SensorBatteryTemperature, SensorOIMode,
-        SensorRightMotorCurrent, SensorLeftMotorCurrent, SensorMainBrushCurrent,
-        SensorSideBrushCurrent, SensorVirtualWall, SensorChargingSourcesAvailable, SensorButtons
-    };
-
-    uint8_t values[22] = {0};
-
-    // Опрашиваем робота
-    bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
-
-    if (success) {
-        charging = values[0];
-        voltage = (values[1] * 256) + values[2];
-        current = (int16_t)((values[3] * 256) + values[4]);
-        batteryCharge = (values[5] * 256) + values[6];
-        batteryCapacity = (values[7] * 256) + values[8];
-        batteryTemperature = (int8_t)values[9];
-        rightMotorCurrent = (int16_t)((values[11] * 256) + values[12]); 
-        leftMotorCurrent = (int16_t)((values[13] * 256) + values[14]); 
-        mainBrushCurrent = (int16_t)((values[15] * 256) + values[16]);
-        sideBrushCurrent = (int16_t)((values[17] * 256) + values[18]);
-        virtualWall = values[19];
-        chargingSources = values[20];
-        buttons = values[21];
-    }
-
-    std::string oiMode = success ? get_oimode(values[10]) : "OFFLINE";
-    std::string activity = success ? get_activity(charging, current) : "No Connection";
-    wasCleaning = activity == "Cleaning";
-    wasDocked = activity == "Docked";
-
-    // ЖЕСТКИЙ СБРОС В ЦИФРУ 0 ДЛЯ ОБХОДА БАГА 'NA'
-    this->voltageSensor->publish_state(success ? (0.001 * voltage) : 0.0);
-    this->currentSensor->publish_state(success ? (0.001 * current) : 0.0);
-    this->batteryChargeSensor->publish_state(success ? (0.001 * batteryCharge) : 0.0);
-    this->batteryCapacitySensor->publish_state(success ? (0.001 * batteryCapacity) : 0.0);
-
-    float battery_level = 0.0;
-    if (success && batteryCapacity > 0) {
-        battery_level = 100.0 * ((float)batteryCharge / (float)batteryCapacity);
-    }
-    this->batteryPercentSensor->publish_state(battery_level);
-
-    this->batteryTemperatureSensor->publish_state(success ? (float)batteryTemperature : 0.0);
-    this->chargingSensor->publish_state(success ? ToString(charging) : "OFF");
-    this->activitySensor->publish_state(activity);
-    this->driveSpeedSensor->publish_state(0.0);
-    this->oiModeSensor->publish_state(oiMode);
-
-    this->rightMotorCurrentSensor->publish_state(success ? (0.001 * rightMotorCurrent) : 0.0);
-    this->leftMotorCurrentSensor->publish_state(success ? (0.001 * leftMotorCurrent) : 0.0);
-    this->mainBrushCurrentSensor->publish_state(success ? (0.001 * mainBrushCurrent) : 0.0);
-    this->sideBrushCurrentSensor->publish_state(success ? (0.001 * sideBrushCurrent) : 0.0);
-
-    this->virtualWallSensor->publish_state(success && (virtualWall == 1));
-    this->chargingSourcesSensor->publish_state(success && (chargingSources != 0));
-    this->buttonsSensor->publish_state("None");
-}
-
+		    if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
+		        start_oi(); 
+		        safeMode(); 
+		    }
+		
+		    uint8_t charging = 0;
+		    uint16_t voltage = 0;
+		    int16_t current = 0;
+		    uint16_t batteryCharge = 0;
+		    uint16_t batteryCapacity = 0;
+		    int16_t batteryTemperature = 0;
+		    int16_t rightMotorCurrent = 0;
+		    int16_t leftMotorCurrent = 0;
+		    int16_t mainBrushCurrent = 0;
+		    int16_t sideBrushCurrent = 0;
+		    uint8_t virtualWall = 0;
+		    uint8_t chargingSources = 0;
+		    uint8_t buttons = 0;
+		
+		    flush();
+		
+		    // Строгая последовательность запроса пакетов датчиков
+		    uint8_t sensors[] = {
+		        SensorChargingState,            // 1 байт  [idx: 0]
+		        SensorVoltage,                  // 2 байта [idx: 1, 2]
+		        SensorCurrent,                  // 2 байта [idx: 3, 4]
+		        SensorBatteryCharge,            // 2 байта [idx: 5, 6]
+		        SensorBatteryCapacity,          // 2 байта [idx: 7, 8]
+		        SensorBatteryTemperature,       // 1 байт  [idx: 9]
+		        SensorOIMode,                   // 1 байт  [idx: 10]
+		        SensorRightMotorCurrent,        // 2 байта [idx: 11, 12]
+		        SensorLeftMotorCurrent,         // 2 байта [idx: 13, 14]
+		        SensorMainBrushCurrent,         // 2 байта [idx: 15, 16]
+		        SensorSideBrushCurrent,         // 2 байта [idx: 17, 18]
+		        SensorVirtualWall,              // 1 байт  [idx: 19]
+		        SensorChargingSourcesAvailable, // 1 байт  [idx: 20]
+		        SensorButtons                   // 1 байт  [idx: 21]
+		    };
+		
+		    uint8_t values[22] = {0};
+		
+		    // Опрашиваем робота (функция getSensorsList должна быть реализована в вашем классе)
+		    bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
+		
+		    if (success) {
+		        // ТОЧНЫЙ ПАРСИНГ СОГЛАСНО ВЕСУ КАЖДОГО ДАТЧИКА В БАЙТАХ:
+		        charging = values[0];
+		        voltage = (values[1] * 256) + values[2];
+		        current = (int16_t)((values[3] * 256) + values[4]);
+		        batteryCharge = (values[5] * 256) + values[6];
+		        batteryCapacity = (values[7] * 256) + values[8];
+		        batteryTemperature = (int8_t)values[9];
+		        
+		        // Переменная для логики, берется строго из 10-го байта
+		        std::string oiModeFromValues = get_oimode(values[10]); 
+		        
+		        rightMotorCurrent = (int16_t)((values[11] * 256) + values[12]); 
+		        leftMotorCurrent = (int16_t)((values[13] * 256) + values[14]); 
+		        mainBrushCurrent = (int16_t)((values[15] * 256) + values[16]);
+		        sideBrushCurrent = (int16_t)((values[17] * 256) + values[18]);
+		        virtualWall = values[19];
+		        chargingSources = values[20];
+		        buttons = values[21];
+		    }
+		
+		    std::string oiMode = success ? get_oimode(values[10]) : "OFFLINE";
+		    std::string activity = success ? get_activity(charging, current) : "No Connection";
+		    wasCleaning = activity == "Cleaning";
+		    wasDocked = activity == "Docked";
+		
+		    // ЖЕСТКИЙ СБРОС В ЦИФРУ 0 ДЛЯ ОБХОДА БАГА 'NA'
+		    this->voltageSensor->publish_state(success ? (0.001 * voltage) : 0.0);
+		    this->currentSensor->publish_state(success ? (0.001 * current) : 0.0);
+		    this->batteryChargeSensor->publish_state(success ? (0.001 * batteryCharge) : 0.0);
+		    this->batteryCapacitySensor->publish_state(success ? (0.001 * batteryCapacity) : 0.0);
+		
+		    float battery_level = 0.0;
+		    if (success && batteryCapacity > 0) {
+		        battery_level = 100.0 * ((float)batteryCharge / (float)batteryCapacity);
+		    }
+		    this->batteryPercentSensor->publish_state(battery_level);
+		
+		    this->batteryTemperatureSensor->publish_state(success ? (float)batteryTemperature : 0.0);
+		    this->chargingSensor->publish_state(success ? ToString(charging) : "OFF");
+		    this->activitySensor->publish_state(activity);
+		    this->driveSpeedSensor->publish_state(0.0);
+		    this->oiModeSensor->publish_state(oiMode);
+		
+		    this->rightMotorCurrentSensor->publish_state(success ? (0.001 * rightMotorCurrent) : 0.0);
+		    this->leftMotorCurrentSensor->publish_state(success ? (0.001 * leftMotorCurrent) : 0.0);
+		    this->mainBrushCurrentSensor->publish_state(success ? (0.001 * mainBrushCurrent) : 0.0);
+		    this->sideBrushCurrentSensor->publish_state(success ? (0.001 * sideBrushCurrent) : 0.0);
+		
+		    this->virtualWallSensor->publish_state(success && (virtualWall == 1));
+		    this->chargingSourcesSensor->publish_state(success && (chargingSources != 0));
+		    this->buttonsSensor->publish_state(success ? ToString(buttons) : "None");
+		}
+		
 
 
         // this function can be called from the Roomba yaml file as 
