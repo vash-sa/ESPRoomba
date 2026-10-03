@@ -143,7 +143,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
             SensorButtons                   // 1 байт  [values]
         };
 
-        uint8_t values = {0};
+        uint8_t values[22] = {0};
 
         // Запрашиваем данные у робота через наш добавленный метод getSensorsList
         bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
