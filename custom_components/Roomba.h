@@ -169,33 +169,44 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		        wasCleaning = activity == "Cleaning";
 		        wasDocked = activity == "Docked";
 		
-		        // Публикация состояний в датчики Home Assistant (с жестким сбросом в 0 при ошибке 'NA')
-		        this->voltageSensor->publish_state(success ? (0.001 * voltage) : 0.0);
-		        this->currentSensor->publish_state(success ? (0.001 * current) : 0.0);
-		        this->batteryChargeSensor->publish_state(success ? (0.001 * batteryCharge) : 0.0);
-		        this->batteryCapacitySensor->publish_state(success ? (0.001 * batteryCapacity) : 0.0);
+		        // === ОБХОД БАГА С ИНТЕРФЕЙСОМ ESPHOME И СИСТЕМНЫМ СТАТУСОМ 'NA' ===
+		        // Выносим значения в чистые float-переменные для беспрепятственной публикации
+		        float final_voltage  = success ? (0.001 * voltage) : 0.0;
+		        float final_current  = success ? (0.001 * current) : 0.0;
+		        float final_charge   = success ? (0.001 * batteryCharge) : 0.0;
+		        float final_capacity = success ? (0.001 * batteryCapacity) : 0.0;
 		
-		        float battery_level = 0.0;
+		        float battery_level  = 0.0;
 		        if (success && batteryCapacity > 0) {
 		            battery_level = 100.0 * ((float)batteryCharge / (float)batteryCapacity);
 		        }
+		
+		        // Публикация основных параметров питания (теперь они гарантированно обновят UI)
+		        this->voltageSensor->publish_state(final_voltage);
+		        this->currentSensor->publish_state(final_current);
+		        this->batteryChargeSensor->publish_state(final_charge);
+		        this->batteryCapacitySensor->publish_state(final_capacity);
 		        this->batteryPercentSensor->publish_state(battery_level);
 		
+		        // Публикация текстовых статусов и температуры
 		        this->batteryTemperatureSensor->publish_state(success ? (float)batteryTemperature : 0.0);
 		        this->chargingSensor->publish_state(success ? ToString(charging) : "OFF");
 		        this->activitySensor->publish_state(activity);
 		        this->driveSpeedSensor->publish_state(0.0);
 		        this->oiModeSensor->publish_state(oiMode);
 		
+		        // Публикация токов периферии и двигателей щеток/колес
 		        this->rightMotorCurrentSensor->publish_state(success ? (0.001 * rightMotorCurrent) : 0.0);
 		        this->leftMotorCurrentSensor->publish_state(success ? (0.001 * leftMotorCurrent) : 0.0);
 		        this->mainBrushCurrentSensor->publish_state(success ? (0.001 * mainBrushCurrent) : 0.0);
 		        this->sideBrushCurrentSensor->publish_state(success ? (0.001 * sideBrushCurrent) : 0.0);
 		
+		        // Бинарные сенсоры виртуальной стены и наличия док-станции
 		        this->virtualWallSensor->publish_state(success && (virtualWall == 1));
 		        this->chargingSourcesSensor->publish_state(success && (chargingSources != 0));
 		        this->buttonsSensor->publish_state(success ? ToString(buttons) : "None");
 		    }
+		
 
 
         // this function can be called from the Roomba yaml file as 
