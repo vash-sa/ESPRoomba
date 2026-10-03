@@ -173,6 +173,7 @@ text_sensor:
       - name: "${name} activity"
       - name: "${name} OI mode"
         id: "${id}_oi_mode"
+        internal: true
       - name: "${name} pressed button"
 
 button:
