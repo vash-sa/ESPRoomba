@@ -102,7 +102,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			register_service(&RoombaComponent::on_command, "command", {"command"});
 		}*/
 
-		       void update() override {
+		           void update() override {
         // Проверяем режим. Если робот уснул или сбросился — принудительно будим и переводим в Safe
         if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
             start_oi(); 
@@ -127,20 +127,20 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 
         // Строгий порядок запроса датчиков Roomba 698. Суммарная длина ответа — ровно 22 байта.
         uint8_t sensors[] = {
-            SensorChargingState,            // 1 байт  [values]
-            SensorVoltage,                  // 2 байта [values, values]
-            SensorCurrent,                  // 2 байта [values, values]
-            SensorBatteryCharge,            // 2 байта [values, values]
-            SensorBatteryCapacity,          // 2 байта [values, values]
-            SensorBatteryTemperature,       // 1 байт  [values]
-            SensorOIMode,                   // 1 байт  [values]
-            SensorRightMotorCurrent,        // 2 байта [values, values]
-            SensorLeftMotorCurrent,         // 2 байта [values, values]
-            SensorMainBrushCurrent,         // 2 байта [values, values]
-            SensorSideBrushCurrent,         // 2 байта [values, values]
-            SensorVirtualWall,              // 1 байт  [values]
-            SensorChargingSourcesAvailable, // 1 байт  [values]
-            SensorButtons                   // 1 байт  [values]
+            SensorChargingState,            
+            SensorVoltage,                  
+            SensorCurrent,                  
+            SensorBatteryCharge,            
+            SensorBatteryCapacity,          
+            SensorBatteryTemperature,       
+            SensorOIMode,                   
+            SensorRightMotorCurrent,        
+            SensorLeftMotorCurrent,         
+            SensorMainBrushCurrent,         
+            SensorSideBrushCurrent,         
+            SensorVirtualWall,              
+            SensorChargingSourcesAvailable, 
+            SensorButtons                   
         };
 
         uint8_t values[22] = {0};
@@ -159,22 +159,22 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
         // ====================================================================
 
         if (success) {
-            charging = values;
-            voltage = (values * 256) + values;
-            current = (int16_t)((values * 256) + values);
-            batteryCharge = (values * 256) + values;
-            batteryCapacity = (values * 256) + values;
-            batteryTemperature = (int8_t)values;
-            rightMotorCurrent = (int16_t)((values * 256) + values); 
-            leftMotorCurrent = (int16_t)((values * 256) + values); 
-            mainBrushCurrent = (int16_t)((values * 256) + values);
-            sideBrushCurrent = (int16_t)((values * 256) + values);
-            virtualWall = values;
-            chargingSources = values;
-            buttons = values;
+            charging = values[0];
+            voltage = (values[1] * 256) + values[2];
+            current = (int16_t)((values[3] * 256) + values[4]);
+            batteryCharge = (values[5] * 256) + values[6];
+            batteryCapacity = (values[7] * 256) + values[8];
+            batteryTemperature = (int8_t)values[9];
+            rightMotorCurrent = (int16_t)((values[11] * 256) + values[12]); 
+            leftMotorCurrent = (int16_t)((values[13] * 256) + values[14]); 
+            mainBrushCurrent = (int16_t)((values[15] * 256) + values[16]);
+            sideBrushCurrent = (int16_t)((values[17] * 256) + values[18]);
+            virtualWall = values[19];
+            chargingSources = values[20];
+            buttons = values[21];
         }
 
-        std::string oiMode = success ? get_oimode(values) : "OFFLINE";
+        std::string oiMode = success ? get_oimode(values[10]) : "OFFLINE";
         std::string activity = success ? get_activity(charging, current) : "No Connection";
         wasCleaning = activity == "Cleaning";
         wasDocked = activity == "Docked";
