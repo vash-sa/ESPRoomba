@@ -83,26 +83,13 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		void setup() override {
    			 // Намертво переводим пин в режим входа (Hi-Z).
     		// Прямой провод теперь в полной безопасности при любом флаге!
+			this->set_update_interval(5000);
     		pinMode(this->brcPin, INPUT); 
 
     		register_service(&RoombaComponent::on_command, "command", {"command"});
-		}
+		}		
 
-
-		/*void setup() override {
-			if (this->lazy650Enabled) {
-				// High-impedence on the BRC_PIN
-				// see https://github.com/johnboiles/esp-roomba-mqtt/commit/fa9af14376f740f366a9ecf4cb59dec2419deeb0#diff-34d21af3c614ea3cee120df276c9c4ae95053830d7f1d3deaf009a4625409ad2R140
-				pinMode(this->brcPin, INPUT);
-			} else {
-				pinMode(this->brcPin, OUTPUT);
-				digitalWrite(this->brcPin, HIGH);
-			}
-
-			register_service(&RoombaComponent::on_command, "command", {"command"});
-		}*/
-
-		           void update() override {
+	void update() override {
         // Проверяем режим. Если робот уснул или сбросился — принудительно будим и переводим в Safe
         if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
             start_oi(); 
@@ -149,15 +136,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
         bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
 
         // ====================================================================
-        // ВЫВОД НАДПИСИ НАПРЯМУЮ В КОНСОЛЬ БРАУЗЕРА (ЧЕРЕЗ USB-SERIAL)
-        // ====================================================================
-        if (success) {
-            printf("\n>>> [ROOMBA] Опрос датчиков прошел УСПЕШНО! Робот ответил. <<<\n");
-        } else {
-            printf("\n>>> [ROOMBA] ОШИБКА ОПРОСА! Данные от робота НЕ получены. <<<\n");
-        }
-        // ====================================================================
-
+        
         if (success) {
             charging = values[0];
             voltage = (values[1] * 256) + values[2];
