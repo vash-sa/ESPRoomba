@@ -102,110 +102,120 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 			register_service(&RoombaComponent::on_command, "command", {"command"});
 		}*/
 
-		    void update() override {
-		        // Проверяем режим. Если робот уснул или сбросился — принудительно будим и переводим в Safe
-		        if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
-		            start_oi(); 
-		            safeMode(); 
-		        }
-		
-		        uint8_t charging = 0;
-		        uint16_t voltage = 0;
-		        int16_t current = 0;
-		        uint16_t batteryCharge = 0;
-		        uint16_t batteryCapacity = 0;
-		        int16_t batteryTemperature = 0;
-		        int16_t rightMotorCurrent = 0;
-		        int16_t leftMotorCurrent = 0;
-		        int16_t mainBrushCurrent = 0;
-		        int16_t sideBrushCurrent = 0;
-		        uint8_t virtualWall = 0;
-		        uint8_t chargingSources = 0;
-		        uint8_t buttons = 0;
-		
-		        flush();
-		
-		        // Строгий порядок запроса датчиков Roomba 698. Суммарная длина ответа — ровно 22 байта.
-		        uint8_t sensors[] = {
-		            SensorChargingState,            // 1 байт  [values[0]]
-		            SensorVoltage,                  // 2 байта [values[1], values[2]]
-		            SensorCurrent,                  // 2 байта [values[3], values[4]]
-		            SensorBatteryCharge,            // 2 байта [values[5], values[6]]
-		            SensorBatteryCapacity,          // 2 байта [values[7], values[8]]
-		            SensorBatteryTemperature,       // 1 байт  [values[9]]
-		            SensorOIMode,                   // 1 байт  [values[10]]
-		            SensorRightMotorCurrent,        // 2 байта [values[11], values[12]]
-		            SensorLeftMotorCurrent,         // 2 байта [values[13], values[14]]
-		            SensorMainBrushCurrent,         // 2 байта [values[15], values[16]]
-		            SensorSideBrushCurrent,         // 2 байта [values[17], values[18]]
-		            SensorVirtualWall,              // 1 байт  [values[19]]
-		            SensorChargingSourcesAvailable, // 1 байт  [values[20]]
-		            SensorButtons                   // 1 байт  [values[21]]
-		        };
-		
-		        uint8_t values[22] = {0};
-		
-		        // Запрашиваем данные у робота через наш добавленный метод getSensorsList
-		        bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
-		
-		        if (success) {
-		            charging = values[0];
-		            voltage = (values[1] * 256) + values[2];
-		            current = (int16_t)((values[3] * 256) + values[4]);
-		            batteryCharge = (values[5] * 256) + values[6];
-		            batteryCapacity = (values[7] * 256) + values[8];
-		            batteryTemperature = (int8_t)values[9];
-		            rightMotorCurrent = (int16_t)((values[11] * 256) + values[12]); 
-		            leftMotorCurrent = (int16_t)((values[13] * 256) + values[14]); 
-		            mainBrushCurrent = (int16_t)((values[15] * 256) + values[16]);
-		            sideBrushCurrent = (int16_t)((values[17] * 256) + values[18]);
-		            virtualWall = values[19];
-		            chargingSources = values[20];
-		            buttons = values[21];
-		        }
-		
-		        std::string oiMode = success ? get_oimode(values[10]) : "OFFLINE";
-		        std::string activity = success ? get_activity(charging, current) : "No Connection";
-		        wasCleaning = activity == "Cleaning";
-		        wasDocked = activity == "Docked";
-		
-		        // === ОБХОД БАГА С ИНТЕРФЕЙСОМ ESPHOME И СИСТЕМНЫМ СТАТУСОМ 'NA' ===
-		        // Выносим значения в чистые float-переменные для беспрепятственной публикации
-		        float final_voltage  = success ? (0.001 * voltage) : 0.0;
-		        float final_current  = success ? (0.001 * current) : 0.0;
-		        float final_charge   = success ? (0.001 * batteryCharge) : 0.0;
-		        float final_capacity = success ? (0.001 * batteryCapacity) : 0.0;
-		
-		        float battery_level  = 0.0;
-		        if (success && batteryCapacity > 0) {
-		            battery_level = 100.0 * ((float)batteryCharge / (float)batteryCapacity);
-		        }
-		
-		        // Публикация основных параметров питания (теперь они гарантированно обновят UI)
-		        this->voltageSensor->publish_state(final_voltage);
-		        this->currentSensor->publish_state(final_current);
-		        this->batteryChargeSensor->publish_state(final_charge);
-		        this->batteryCapacitySensor->publish_state(final_capacity);
-		        this->batteryPercentSensor->publish_state(battery_level);
-		
-		        // Публикация текстовых статусов и температуры
-		        this->batteryTemperatureSensor->publish_state(success ? (float)batteryTemperature : 0.0);
-		        this->chargingSensor->publish_state(success ? ToString(charging) : "OFF");
-		        this->activitySensor->publish_state(activity);
-		        this->driveSpeedSensor->publish_state(0.0);
-		        this->oiModeSensor->publish_state(oiMode);
-		
-		        // Публикация токов периферии и двигателей щеток/колес
-		        this->rightMotorCurrentSensor->publish_state(success ? (0.001 * rightMotorCurrent) : 0.0);
-		        this->leftMotorCurrentSensor->publish_state(success ? (0.001 * leftMotorCurrent) : 0.0);
-		        this->mainBrushCurrentSensor->publish_state(success ? (0.001 * mainBrushCurrent) : 0.0);
-		        this->sideBrushCurrentSensor->publish_state(success ? (0.001 * sideBrushCurrent) : 0.0);
-		
-		        // Бинарные сенсоры виртуальной стены и наличия док-станции
-		        this->virtualWallSensor->publish_state(success && (virtualWall == 1));
-		        this->chargingSourcesSensor->publish_state(success && (chargingSources != 0));
-		        this->buttonsSensor->publish_state(success ? ToString(buttons) : "None");
-		    }
+		       void update() override {
+        // Проверяем режим. Если робот уснул или сбросился — принудительно будим и переводим в Safe
+        if (this->oiModeSensor->state != "safe" && this->oiModeSensor->state != "full") {
+            start_oi(); 
+            safeMode(); 
+        }
+
+        uint8_t charging = 0;
+        uint16_t voltage = 0;
+        int16_t current = 0;
+        uint16_t batteryCharge = 0;
+        uint16_t batteryCapacity = 0;
+        int16_t batteryTemperature = 0;
+        int16_t rightMotorCurrent = 0;
+        int16_t leftMotorCurrent = 0;
+        int16_t mainBrushCurrent = 0;
+        int16_t sideBrushCurrent = 0;
+        uint8_t virtualWall = 0;
+        uint8_t chargingSources = 0;
+        uint8_t buttons = 0;
+
+        flush();
+
+        // Строгий порядок запроса датчиков Roomba 698. Суммарная длина ответа — ровно 22 байта.
+        uint8_t sensors[] = {
+            SensorChargingState,            // 1 байт  [values]
+            SensorVoltage,                  // 2 байта [values, values]
+            SensorCurrent,                  // 2 байта [values, values]
+            SensorBatteryCharge,            // 2 байта [values, values]
+            SensorBatteryCapacity,          // 2 байта [values, values]
+            SensorBatteryTemperature,       // 1 байт  [values]
+            SensorOIMode,                   // 1 байт  [values]
+            SensorRightMotorCurrent,        // 2 байта [values, values]
+            SensorLeftMotorCurrent,         // 2 байта [values, values]
+            SensorMainBrushCurrent,         // 2 байта [values, values]
+            SensorSideBrushCurrent,         // 2 байта [values, values]
+            SensorVirtualWall,              // 1 байт  [values]
+            SensorChargingSourcesAvailable, // 1 байт  [values]
+            SensorButtons                   // 1 байт  [values]
+        };
+
+        uint8_t values = {0};
+
+        // Запрашиваем данные у робота через наш добавленный метод getSensorsList
+        bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
+
+        // ====================================================================
+        // ВЫВОД НАДПИСИ НАПРЯМУЮ В КОНСОЛЬ БРАУЗЕРА (ЧЕРЕЗ USB-SERIAL)
+        // ====================================================================
+        if (success) {
+            printf("\n>>> [ROOMBA] Опрос датчиков прошел УСПЕШНО! Робот ответил. <<<\n");
+        } else {
+            printf("\n>>> [ROOMBA] ОШИБКА ОПРОСА! Данные от робота НЕ получены. <<<\n");
+        }
+        // ====================================================================
+
+        if (success) {
+            charging = values;
+            voltage = (values * 256) + values;
+            current = (int16_t)((values * 256) + values);
+            batteryCharge = (values * 256) + values;
+            batteryCapacity = (values * 256) + values;
+            batteryTemperature = (int8_t)values;
+            rightMotorCurrent = (int16_t)((values * 256) + values); 
+            leftMotorCurrent = (int16_t)((values * 256) + values); 
+            mainBrushCurrent = (int16_t)((values * 256) + values);
+            sideBrushCurrent = (int16_t)((values * 256) + values);
+            virtualWall = values;
+            chargingSources = values;
+            buttons = values;
+        }
+
+        std::string oiMode = success ? get_oimode(values) : "OFFLINE";
+        std::string activity = success ? get_activity(charging, current) : "No Connection";
+        wasCleaning = activity == "Cleaning";
+        wasDocked = activity == "Docked";
+
+        // Выносим значения в чистые float-переменные для беспрепятственной публикации
+        float final_voltage  = success ? (0.001 * voltage) : 0.0;
+        float final_current  = success ? (0.001 * current) : 0.0;
+        float final_charge   = success ? (0.001 * batteryCharge) : 0.0;
+        float final_capacity = success ? (0.001 * batteryCapacity) : 0.0;
+
+        float battery_level  = 0.0;
+        if (success && batteryCapacity > 0) {
+            battery_level = 100.0 * ((float)batteryCharge / (float)batteryCapacity);
+        }
+
+        // Публикация основных параметров питания
+        this->voltageSensor->publish_state(final_voltage);
+        this->currentSensor->publish_state(final_current);
+        this->batteryChargeSensor->publish_state(final_charge);
+        this->batteryCapacitySensor->publish_state(final_capacity);
+        this->batteryPercentSensor->publish_state(battery_level);
+
+        // Публикация текстовых статусов и температуры
+        this->batteryTemperatureSensor->publish_state(success ? (float)batteryTemperature : 0.0);
+        this->chargingSensor->publish_state(success ? ToString(charging) : "OFF");
+        this->activitySensor->publish_state(activity);
+        this->driveSpeedSensor->publish_state(0.0);
+        this->oiModeSensor->publish_state(oiMode);
+
+        // Публикация токов периферии и двигателей щеток/колес
+        this->rightMotorCurrentSensor->publish_state(success ? (0.001 * rightMotorCurrent) : 0.0);
+        this->leftMotorCurrentSensor->publish_state(success ? (0.001 * leftMotorCurrent) : 0.0);
+        this->mainBrushCurrentSensor->publish_state(success ? (0.001 * mainBrushCurrent) : 0.0);
+        this->sideBrushCurrentSensor->publish_state(success ? (0.001 * sideBrushCurrent) : 0.0);
+
+        // Бинарные сенсоры виртуальной стены и наличия док-станции
+        this->virtualWallSensor->publish_state(success && (virtualWall == 1));
+        this->chargingSourcesSensor->publish_state(success && (chargingSources != 0));
+        this->buttonsSensor->publish_state(success ? ToString(buttons) : "None");
+    }
+
 		
 
 
