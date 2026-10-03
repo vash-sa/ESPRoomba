@@ -108,51 +108,17 @@ sensor:
         auto r = ${init}
         return {r->voltageSensor, r->currentSensor, r->batteryChargeSensor, r->batteryCapacitySensor, r->batteryPercentSensor, r->batteryTemperatureSensor, r->driveSpeedSensor, r->rightMotorCurrentSensor, r->leftMotorCurrentSensor, r->mainBrushCurrentSensor, r->sideBrushCurrentSensor};  
     sensors:
-      - name: "${name} voltage"
-        unit_of_measurement: "V"
-        icon: mdi:sine-wave
-        accuracy_decimals: 2
-      - name: "${name} current"
-        unit_of_measurement: "A"
-        icon: mdi:lightning-bolt
-        accuracy_decimals: 3
-      - name: "${name} charge"
-        unit_of_measurement: "Ah"
-        icon: mdi:battery-charging
-        accuracy_decimals: 2
-      - name: "${name} capacity"
-        unit_of_measurement: "Ah"
-        icon: mdi:battery
-        accuracy_decimals: 2
-      - name: "${name} battery"
-        unit_of_measurement: "%"
-        state_class: "measurement"
-        device_class: battery
-        icon: mdi:battery-outline
-        accuracy_decimals: 0
-      - name: "${name} temperature"
-        unit_of_measurement: "°C"
-        icon: mdi:thermometer
-        accuracy_decimals: 0
-      - name: "${name} drive speed"
-        unit_of_measurement: "mm/s"
-        accuracy_decimals: 0
-      - name: "${name} right motor current"
-        unit_of_measurement: "A"
-        icon: mdi:lightning-bolt
-        accuracy_decimals: 2
-      - name: "${name} left motor current"
-        unit_of_measurement: "A"
-        icon: mdi:lightning-bolt
-        accuracy_decimals: 2
-      - name: "${name} main brush current"
-        unit_of_measurement: "A"
-        icon: mdi:lightning-bolt
-        accuracy_decimals: 2
-      - name: "${name} side brush current"
-        unit_of_measurement: "A"
-        icon: mdi:lightning-bolt
-        accuracy_decimals: 2
+      - name: "${name} voltage"        
+      - name: "${name} current"        
+      - name: "${name} charge"       
+      - name: "${name} capacity"        
+      - name: "${name} battery"        
+      - name: "${name} temperature"        
+      - name: "${name} drive speed"        
+      - name: "${name} right motor current"        
+      - name: "${name} left motor current"        
+      - name: "${name} main brush current"        
+      - name: "${name} side brush current"        
        
 text_sensor:
   - platform: wifi_info
