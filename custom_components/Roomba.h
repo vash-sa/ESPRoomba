@@ -24,6 +24,58 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		BinarySensor *chargingSourcesSensor;
 		TextSensor *buttonsSensor;
 
+		    // --- НАЧАЛО ВСТАВКИ ДЛЯ ОЖИВЛЕНИЯ ДАТЧИКОВ ---
+		    bool getSensorsList(uint8_t* sensors, uint8_t sensorsCount, uint8_t* values, uint8_t valuesCount) {
+		        // Полностью очищаем буфер UART перед отправкой запроса
+		        while (this->available() > 0) {
+		            this->read();
+		        }
+		
+		        // Отправляем команду 149 (Query List) и список нужных датчиков
+		        this->write_byte(149);
+		        this->write_byte(sensorsCount);
+		        for (uint8_t i = 0; i < sensorsCount; i++) {
+		            this->write_byte(sensors[i]);
+		        }
+		
+		        // Ждем ответа от робота с таймаутом 250мс
+		        uint32_t startTime = millis();
+		        uint8_t bytesRead = 0;
+		
+		        while ((millis() - startTime < 250) && (bytesRead < valuesCount)) {
+		            if (this->available() > 0) {
+		                // Читаем байт из UART ESPHome
+		                values[bytesRead++] = this->read();
+		            }
+		            yield(); // Важно для стабильности Wi-Fi на ESP32-C3
+		        }
+		
+		        // Возвращает true, если робот успешно отдал все 22 байта
+		        return (bytesRead == valuesCount);
+		    }
+		
+		    std::string get_oimode(uint8_t mode) {
+		        switch(mode) {
+		            case 0: return "off";
+		            case 1: return "passive";
+		            case 2: return "safe";
+		            case 3: return "full";
+		            default: return "unknown";
+		        }
+		    }
+		
+		    std::string get_activity(uint8_t chargingState, int16_t current) {
+		        if (chargingState > 0 && chargingState < 5) return "Docked";
+		        if (current < -200) return "Cleaning";
+		        return "Idle";
+		    }
+		
+		    std::string ToString(uint8_t val) {
+		        return std::to_string(val);
+		    }
+		    // --- КОНЕЦ ВСТАВКИ ---
+
+
 		static RoombaComponent* instance(uint8_t brcPin, UARTComponent *parent, uint32_t updateInterval, bool lazy650Enabled) {
 			static RoombaComponent* INSTANCE = new RoombaComponent(brcPin, parent, updateInterval, lazy650Enabled);
 			return INSTANCE;
@@ -73,7 +125,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		
 		        flush();
 		
-		        // Строгий порядок запроса датчиков. Суммарная длина ответа — ровно 22 байта.
+		        // Строгий порядок запроса датчиков Roomba 698. Суммарная длина ответа — ровно 22 байта.
 		        uint8_t sensors[] = {
 		            SensorChargingState,            // 1 байт  [values[0]]
 		            SensorVoltage,                  // 2 байта [values[1], values[2]]
@@ -93,7 +145,7 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		
 		        uint8_t values[22] = {0};
 		
-		        // Запрашиваем данные у робота через встроенный метод компонента
+		        // Запрашиваем данные у робота через наш добавленный метод getSensorsList
 		        bool success = getSensorsList(sensors, sizeof(sensors), values, sizeof(values));
 		
 		        if (success) {
@@ -142,8 +194,6 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		
 		        this->virtualWallSensor->publish_state(success && (virtualWall == 1));
 		        this->chargingSourcesSensor->publish_state(success && (chargingSources != 0));
-		        
-		        // Корректный вывод нажатых кнопок, если они есть
 		        this->buttonsSensor->publish_state(success ? ToString(buttons) : "None");
 		    }
 
