@@ -583,11 +583,13 @@ class RoombaComponent : public UARTDevice, public CustomAPIDevice, public Pollin
 		}
 
 		void flush() {
-			while (available())
-			{
-				read();
-			}
-		}
+		        uint32_t startTime = millis();
+		        // Чистим буфер не дольше 20 миллисекунд, чтобы не зависнуть в петле эха
+		        while (this->available() > 0 && (millis() - startTime < 20)) {
+		            this->read();
+		        }
+		    }
+
 
 		void setDate() {
 			auto time_component = id(my_time).now();
