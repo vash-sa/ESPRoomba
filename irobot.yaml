@@ -83,13 +83,14 @@ time:
 custom_component:
   - lambda: |-
       auto r = ${init}
+      r->set_update_interval(5000);
       return {r};
     id: my_roomba
 
 binary_sensor:
   - platform: custom
     lambda: |-
-        auto r = RoombaComponent::instance(10, id(uart_bus), 10000, true);
+        auto r = ${init}
         return {r->vacuumSensor, r->virtualWallSensor, r->chargingSourcesSensor};   
     binary_sensors:
       - name: "${name} vacuum state"
@@ -106,8 +107,7 @@ sensor:
   - platform: custom
     lambda: |-
         auto r = ${init}
-        return {r->voltageSensor, r->currentSensor, r->batteryChargeSensor, r->batteryCapacitySensor, r->batteryPercentSensor, r->batteryTemperatureSensor, r->driveSpeedSensor, r->rightMotorCurrentSensor, r->leftMotorCurrentSensor, r->mainBrushCurrentSensor, r->sideBrushCurrentSensor};
-    update_interval: 5s
+        return {r->voltageSensor, r->currentSensor, r->batteryChargeSensor, r->batteryCapacitySensor, r->batteryPercentSensor, r->batteryTemperatureSensor, r->driveSpeedSensor, r->rightMotorCurrentSensor, r->leftMotorCurrentSensor, r->mainBrushCurrentSensor, r->sideBrushCurrentSensor};  
     sensors:
       - name: "${name} voltage"
         unit_of_measurement: "V"
